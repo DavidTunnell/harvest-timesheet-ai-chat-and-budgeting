@@ -3,7 +3,7 @@ import nodemailer from 'nodemailer';
 // Create a transporter using Gmail SMTP (free)
 // You can use any email provider's SMTP settings
 const createTransporter = () => {
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER || 'your-email@gmail.com',
