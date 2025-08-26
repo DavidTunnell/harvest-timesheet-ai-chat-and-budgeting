@@ -82,20 +82,20 @@ export function generateProjectReportHTML(projectData: any[]): string {
 
   projectData.forEach(project => {
     const budgetPercentage = project.budget > 0 
-      ? ((project.totalHours * project.avgHourlyRate) / project.budget * 100).toFixed(1)
+      ? ((project.billedAmount || 0) / project.budget * 100).toFixed(1)
       : 'N/A';
     
     totalHours += project.totalHours;
     if (project.budget > 0) {
-      totalBudgetUsed += (project.totalHours * project.avgHourlyRate) / project.budget * 100;
+      totalBudgetUsed += (project.billedAmount || 0) / project.budget * 100;
     }
 
     tableRows += `
       <tr>
         <td style="padding: 12px; border-bottom: 1px solid #eee;">${project.name}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.totalHours}h</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">$${project.budget.toLocaleString()}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; color: ${parseFloat(budgetPercentage) > 80 ? '#e74c3c' : '#27ae60'};">
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.totalHours.toFixed(1)}h</td>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; color: ${parseFloat(budgetPercentage) > 90 ? '#e74c3c' : parseFloat(budgetPercentage) > 75 ? '#f39c12' : '#27ae60'};">
           ${budgetPercentage}%
         </td>
       </tr>
@@ -126,7 +126,7 @@ export function generateProjectReportHTML(projectData: any[]): string {
             <th style="padding: 15px; text-align: left;">Project Name</th>
             <th style="padding: 15px; text-align: center;">Hours Logged</th>
             <th style="padding: 15px; text-align: center;">Total Budget</th>
-            <th style="padding: 15px; text-align: center;">Budget Used</th>
+            <th style="padding: 15px; text-align: center;">Budget %</th>
           </tr>
         </thead>
         <tbody>

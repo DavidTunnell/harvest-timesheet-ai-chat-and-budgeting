@@ -9,6 +9,7 @@ interface ProjectReportData {
   totalHours: number;
   budget: number;
   avgHourlyRate: number;
+  billedAmount: number;
 }
 
 export class ReportScheduler {
@@ -62,30 +63,60 @@ export class ReportScheduler {
     // Get all projects to get budget information
     const projects = await this.harvestService.getProjects();
 
+    // Filter for only the requested projects (same as Weekly Report page)
+    const targetProjects = [
+      { keywords: ["educational data services", "educational", "eds", "inc", "retained support services"], name: "Educational Data Services" },
+      { keywords: ["cloudsee", "cloud see"], name: "CloudSee Drive" },
+      { keywords: ["vision", "ast"], name: "Vision AST" }
+    ];
+
     // Group time entries by project and calculate totals
     const projectMap = new Map<number, ProjectReportData>();
 
-    timeEntries.forEach(entry => {
-      const projectId = entry.project.id;
-      const project = projects.find(p => p.id === projectId);
+    // First, add all target projects that exist, even with 0 hours
+    projects.forEach(project => {
+      const isTargetProject = targetProjects.some(target => 
+        target.keywords.some(keyword => 
+          project.name.toLowerCase().includes(keyword.toLowerCase())
+        )
+      );
       
-      if (!project) return;
-
-      if (!projectMap.has(projectId)) {
-        projectMap.set(projectId, {
+      if (isTargetProject) {
+        // Set known budgets from user data (same as Weekly Report page)
+        let projectBudget = project.budget || 0;
+        if (project.name.toLowerCase().includes('retained support services') || 
+            project.name.toLowerCase().includes('educational data services')) {
+          projectBudget = 15500; // $15,500 for EDS
+        } else if (project.name.toLowerCase().includes('vision ast')) {
+          projectBudget = 14700; // $14,700 for Vision AST
+        }
+        
+        projectMap.set(project.id, {
           name: project.name,
           totalHours: 0,
-          budget: project.budget || 0,
-          avgHourlyRate: 75 // Default hourly rate - you can make this configurable
+          budget: projectBudget,
+          avgHourlyRate: 75, // Default hourly rate
+          billedAmount: 0
         });
       }
+    });
 
-      const projectData = projectMap.get(projectId)!;
-      projectData.totalHours += entry.hours;
+    // Now add time entry hours to projects that have them
+    timeEntries.forEach(entry => {
+      const projectId = entry.project.id;
+      
+      if (projectMap.has(projectId)) {
+        const projectData = projectMap.get(projectId)!;
+        projectData.totalHours += entry.hours;
+        // Calculate billed amount using billable rate
+        if (entry.billable) {
+          projectData.billedAmount += (entry.billable_rate || 75) * entry.hours;
+        }
+      }
     });
 
     return Array.from(projectMap.values())
-      .filter(project => project.totalHours > 0)
+      .filter(project => project.totalHours > 0) // Only show projects with hours
       .sort((a, b) => b.totalHours - a.totalHours);
   }
 
