@@ -419,7 +419,7 @@ export default function Chat() {
 
         <TabsContent value="chat" className="flex-1 flex flex-col mt-0">
           {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="chat-messages">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-96" data-testid="chat-messages">
         {/* Welcome Message */}
         {messages.length === 0 && (
           <MessageBubble
@@ -557,7 +557,6 @@ export default function Chat() {
                         <th className="px-6 py-4 text-center">Amount Billed</th>
                         <th className="px-6 py-4 text-center">Budget %</th>
                         <th className="px-6 py-4 text-center">Total Budget</th>
-                        <th className="px-6 py-4 text-center">Budget Used</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -578,12 +577,6 @@ export default function Chat() {
                           </td>
                           <td className="px-6 py-4 text-center">
                             {project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}
-                          </td>
-                          <td className={`px-6 py-4 text-center font-semibold ${
-                            project.budgetUsed > 80 ? 'text-red-600' : 
-                            project.budgetUsed > 60 ? 'text-yellow-600' : 'text-green-600'
-                          }`}>
-                            {project.budget > 0 ? `${project.budgetUsed.toFixed(1)}%` : 'N/A'}
                           </td>
                         </tr>
                       ))}
