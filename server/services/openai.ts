@@ -71,7 +71,25 @@ Examples:
 
     const responseText = (response.content[0] as any).text || "{}";
     // Clean up the response by removing markdown code blocks if present
-    const cleanedText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    let cleanedText = responseText.trim();
+    
+    // Remove code block markers at start and end
+    if (cleanedText.startsWith('```json')) {
+      cleanedText = cleanedText.replace(/^```json\s*/, '');
+    }
+    if (cleanedText.startsWith('```')) {
+      cleanedText = cleanedText.replace(/^```\s*/, '');
+    }
+    if (cleanedText.endsWith('```')) {
+      cleanedText = cleanedText.replace(/\s*```$/, '');
+    }
+    
+    // Extract JSON from the text if it contains other content
+    const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanedText = jsonMatch[0];
+    }
+    
     const result = JSON.parse(cleanedText);
     
     // Validate and clean the response
