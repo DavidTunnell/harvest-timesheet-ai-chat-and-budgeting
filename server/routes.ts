@@ -25,7 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Parse the natural language query with OpenAI
+      // Parse the natural language query with Anthropic
       const parsedQuery = await parseNaturalLanguageQuery(message);
       
       // Initialize Harvest service
