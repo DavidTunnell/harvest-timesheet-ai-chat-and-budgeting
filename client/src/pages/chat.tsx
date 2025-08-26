@@ -53,10 +53,19 @@ export default function Chat() {
   });
 
   // Load current configuration
-  const { data: currentConfig } = useQuery({
+  const { data: currentConfig, refetch: refetchConfig } = useQuery({
     queryKey: ["/api/config"],
     enabled: isSettingsOpen, // Only load when settings modal is open
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
+
+  // Trigger config reload when settings modal opens
+  useEffect(() => {
+    if (isSettingsOpen) {
+      refetchConfig();
+    }
+  }, [isSettingsOpen, refetchConfig]);
 
   // Load chat history
   const { data: chatHistory } = useQuery<ChatMessage[]>({
@@ -75,7 +84,9 @@ export default function Chat() {
     if (currentConfig && isSettingsOpen) {
       setAccountId(currentConfig.harvestAccountId || "");
       setEmailUser(currentConfig.emailUser || "");
-      // Don't prefill passwords for security
+      // Clear passwords for security when loading
+      setAccessToken("");
+      setEmailPassword("");
     }
   }, [currentConfig, isSettingsOpen]);
 
