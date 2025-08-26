@@ -29,6 +29,7 @@ export const emailConfig = pgTable("email_config", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   emailUser: text("email_user").notNull(),
   emailPassword: text("email_password").notNull(),
+  reportRecipients: text("report_recipients").notNull().default("david@webapper.com"),
   isActive: boolean("is_active").default(true),
 });
 
@@ -52,6 +53,7 @@ export const insertHarvestConfigSchema = createInsertSchema(harvestConfig).pick(
 export const insertEmailConfigSchema = createInsertSchema(emailConfig).pick({
   emailUser: true,
   emailPassword: true,
+  reportRecipients: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

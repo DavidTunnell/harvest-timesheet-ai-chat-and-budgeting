@@ -34,6 +34,7 @@ export default function Chat() {
   const [accessToken, setAccessToken] = useState("");
   const [emailUser, setEmailUser] = useState("");
   const [emailPassword, setEmailPassword] = useState("");
+  const [reportRecipients, setReportRecipients] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -60,6 +61,7 @@ export default function Chat() {
     emailConfigured: boolean;
     harvestAccountId?: string;
     emailUser?: string;
+    reportRecipients?: string;
   }>({
     queryKey: ["/api/config"],
     enabled: isSettingsOpen, // Only load when settings modal is open
@@ -114,6 +116,7 @@ export default function Chat() {
     if (currentConfig && isSettingsOpen) {
       setAccountId(currentConfig.harvestAccountId || "");
       setEmailUser(currentConfig.emailUser || "");
+      setReportRecipients(currentConfig.reportRecipients || "");
       // Clear passwords for security when loading
       setAccessToken("");
       setEmailPassword("");
@@ -185,7 +188,8 @@ export default function Chat() {
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/email/config", {
         emailUser,
-        emailPassword
+        emailPassword,
+        reportRecipients: reportRecipients || "david@webapper.com"
       });
       return response.json();
     },
@@ -350,7 +354,7 @@ export default function Chat() {
                       <h3 className="text-lg font-semibold">Email Reports</h3>
                     </div>
                     <p className="text-sm text-gray-600">
-                      Configure email settings to send weekly project budget reports to david@webapper.com every Monday at 8:00 AM CST.
+                      Configure email settings to send weekly project budget reports every Monday at 8:00 AM CST.
                     </p>
                     <div>
                       <Label htmlFor="emailUser">Gmail Address</Label>
@@ -375,6 +379,20 @@ export default function Chat() {
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         Generate an App Password in your Google Account settings under Security → 2-Step Verification → App passwords.
+                      </p>
+                    </div>
+                    <div>
+                      <Label htmlFor="reportRecipients">Report Recipients</Label>
+                      <Input
+                        id="reportRecipients"
+                        type="email"
+                        value={reportRecipients}
+                        onChange={(e) => setReportRecipients(e.target.value)}
+                        placeholder="email1@domain.com, email2@domain.com"
+                        data-testid="input-report-recipients"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Enter email addresses separated by commas to receive weekly budget reports.
                       </p>
                     </div>
                     

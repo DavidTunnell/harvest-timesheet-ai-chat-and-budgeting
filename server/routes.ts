@@ -179,7 +179,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         harvestConfigured: !!harvestConfig,
         emailConfigured: !!emailConfig,
         harvestAccountId: harvestConfig?.accountId || "",
-        emailUser: emailConfig?.emailUser || ""
+        emailUser: emailConfig?.emailUser || "",
+        reportRecipients: emailConfig?.reportRecipients || ""
       };
       
       res.json(response);
@@ -197,9 +198,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid email configuration data", details: validation.error });
       }
 
-      const { emailUser, emailPassword } = validation.data;
+      const { emailUser, emailPassword, reportRecipients } = validation.data;
       
-      await storage.saveEmailConfig({ emailUser, emailPassword });
+      await storage.saveEmailConfig({ emailUser, emailPassword, reportRecipients });
       res.json({ success: true, message: "Email settings configured successfully" });
     } catch (error) {
       console.error("Email config error:", error);

@@ -132,28 +132,42 @@ export class ReportScheduler {
         }
       }
 
+      const emailConfig = await storage.getEmailConfig();
+      if (!emailConfig || !emailConfig.reportRecipients) {
+        console.log('No email configuration or recipients found - skipping weekly report');
+        return;
+      }
+
       const projectData = await this.generateProjectReport();
       const htmlContent = generateProjectReportHTML(projectData);
 
-      const emailSuccess = await sendEmail({
-        to: 'david@webapper.com',
-        subject: `Weekly Project Budget Report - ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
-        html: htmlContent
-      });
+      // Split recipients by comma and send to each
+      const recipients = emailConfig.reportRecipients.split(',').map(email => email.trim());
+      let anySuccess = false;
+      
+      for (const recipient of recipients) {
+        if (recipient) {
+          const emailSuccess = await sendEmail({
+            to: recipient,
+            subject: `Weekly Project Budget Report - ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+            html: htmlContent
+          });
 
-      if (emailSuccess) {
-        console.log('Weekly report sent successfully to david@webapper.com');
-      } else {
-        console.log('Email delivery failed, creating backup file...');
-        
-        // Fallback: Save as HTML file
-        const fileSuccess = await saveReportAsFile(htmlContent, 'david@webapper.com');
-        
-        if (fileSuccess) {
-          console.log(createEmailInstructions('david@webapper.com'));
-        } else {
-          console.error('Failed to send weekly report via email or save as file');
+          if (emailSuccess) {
+            console.log(`Weekly report sent successfully to ${recipient}`);
+            anySuccess = true;
+          } else {
+            console.log(`Email delivery failed for ${recipient}, creating backup file...`);
+            const fileSuccess = await saveReportAsFile(htmlContent, recipient);
+            if (fileSuccess) {
+              console.log(createEmailInstructions(recipient));
+            }
+          }
         }
+      }
+      
+      if (!anySuccess && recipients.length > 0) {
+        console.error('Failed to send weekly report to any recipients');
       }
     } catch (error) {
       console.error('Error generating/sending weekly report:', error);
