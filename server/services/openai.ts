@@ -70,26 +70,27 @@ Examples:
     });
 
     const responseText = (response.content[0] as any).text || "{}";
-    // Clean up the response by removing markdown code blocks if present
+    console.log("Raw Anthropic response:", responseText);
+    
+    // Try to extract JSON more aggressively
     let cleanedText = responseText.trim();
     
-    // Remove code block markers at start and end
-    if (cleanedText.startsWith('```json')) {
-      cleanedText = cleanedText.replace(/^```json\s*/, '');
-    }
-    if (cleanedText.startsWith('```')) {
-      cleanedText = cleanedText.replace(/^```\s*/, '');
-    }
-    if (cleanedText.endsWith('```')) {
-      cleanedText = cleanedText.replace(/\s*```$/, '');
+    // Remove all possible markdown patterns
+    cleanedText = cleanedText
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/, '')
+      .replace(/\s*```$/, '')
+      .trim();
+    
+    // Find the JSON object - look for the first { and last }
+    const firstBrace = cleanedText.indexOf('{');
+    const lastBrace = cleanedText.lastIndexOf('}');
+    
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleanedText = cleanedText.substring(firstBrace, lastBrace + 1);
     }
     
-    // Extract JSON from the text if it contains other content
-    const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      cleanedText = jsonMatch[0];
-    }
-    
+    console.log("Cleaned text for parsing:", cleanedText);
     const result = JSON.parse(cleanedText);
     
     // Validate and clean the response
