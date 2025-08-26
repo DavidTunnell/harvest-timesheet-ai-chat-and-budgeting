@@ -56,6 +56,8 @@ export default function Chat() {
 
   // Load current configuration
   const { data: currentConfig, refetch: refetchConfig } = useQuery<{
+    harvestConfigured: boolean;
+    emailConfigured: boolean;
     harvestAccountId?: string;
     emailUser?: string;
   }>({
@@ -335,7 +337,7 @@ export default function Chat() {
                         type="password"
                         value={accessToken}
                         onChange={(e) => setAccessToken(e.target.value)}
-                        placeholder="Your Harvest API Token"
+                        placeholder={currentConfig?.harvestConfigured ? "********" : "Your Harvest API Token"}
                         data-testid="input-access-token"
                       />
                     </div>
@@ -368,7 +370,7 @@ export default function Chat() {
                         type="password"
                         value={emailPassword}
                         onChange={(e) => setEmailPassword(e.target.value)}
-                        placeholder="Gmail App Password (not your regular password)"
+                        placeholder={currentConfig?.emailConfigured ? "********" : "Gmail App Password (not your regular password)"}
                         data-testid="input-email-password"
                       />
                       <p className="text-xs text-gray-500 mt-1">
