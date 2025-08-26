@@ -38,6 +38,12 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Serve the weekly report HTML file first (before other routes)
+  app.get("/weekly-report.html", (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.sendFile("weekly-report.html", { root: process.cwd() });
+  });
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
