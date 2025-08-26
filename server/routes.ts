@@ -208,6 +208,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get weekly report data
+  app.get("/api/reports/data", async (req, res) => {
+    try {
+      const harvestConfig = await storage.getHarvestConfig();
+      
+      if (!harvestConfig) {
+        return res.status(400).json({ error: "Harvest API not configured" });
+      }
+
+      const harvestService = new HarvestService({
+        accountId: harvestConfig.accountId,
+        accessToken: harvestConfig.accessToken
+      });
+
+      // Get month-to-date range
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const dateRange = {
+        from: startOfMonth.toISOString().split('T')[0],
+        to: endOfMonth.toISOString().split('T')[0]
+      };
+
+      // Get time entries for this month
+      const timeEntries = await harvestService.getTimeEntries({
+        dateRange,
+        filters: {}
+      });
+
+      // Get all projects to get budget information
+      const projects = await harvestService.getProjects();
+
+      // Group time entries by project and calculate totals
+      const projectMap = new Map();
+      let totalHours = 0;
+
+      timeEntries.forEach(entry => {
+        const projectId = entry.project.id;
+        const project = projects.find(p => p.id === projectId);
+        
+        if (!project) return;
+
+        if (!projectMap.has(projectId)) {
+          projectMap.set(projectId, {
+            id: projectId,
+            name: project.name,
+            totalHours: 0,
+            budget: project.budget || 0,
+            avgHourlyRate: 75 // Default hourly rate
+          });
+        }
+
+        const projectData = projectMap.get(projectId);
+        projectData.totalHours += entry.hours;
+        totalHours += entry.hours;
+      });
+
+      const projectData = Array.from(projectMap.values())
+        .filter(project => project.totalHours > 0)
+        .sort((a, b) => b.totalHours - a.totalHours)
+        .map(project => ({
+          ...project,
+          budgetUsed: project.budget > 0 
+            ? ((project.totalHours * project.avgHourlyRate) / project.budget * 100)
+            : 0
+        }));
+
+      res.json({
+        projects: projectData,
+        summary: {
+          totalHours: totalHours,
+          projectCount: projectData.length,
+          reportDate: new Date().toLocaleDateString('en-US', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })
+        }
+      });
+
+    } catch (error) {
+      console.error("Report data error:", error);
+      res.status(500).json({ error: "Failed to fetch report data" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

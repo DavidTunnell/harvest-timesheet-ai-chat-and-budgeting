@@ -16,14 +16,19 @@ function Router() {
 }
 
 function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
+  try {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  } catch (error) {
+    console.error("App render error:", error);
+    return <div>Error loading app</div>;
+  }
 }
 
 export default App;

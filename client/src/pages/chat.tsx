@@ -35,7 +35,7 @@ export default function Chat() {
   const [emailUser, setEmailUser] = useState("");
   const [emailPassword, setEmailPassword] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("chat");
+  const [activeTab, setActiveTab] = useState<string>("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -59,6 +59,13 @@ export default function Chat() {
     queryKey: ["/api/config"],
     enabled: isSettingsOpen, // Only load when settings modal is open
     refetchOnMount: true,
+    refetchOnWindowFocus: false,
+  });
+
+  // Load report data
+  const { data: reportData, isLoading: reportLoading } = useQuery({
+    queryKey: ["/api/reports/data"],
+    enabled: activeTab === "report", // Only load when report tab is active
     refetchOnWindowFocus: false,
   });
 
@@ -505,7 +512,9 @@ export default function Chat() {
               {/* Weekly Report Content */}
               <div className="bg-gradient-to-r from-orange-600 to-orange-500 text-white p-8 rounded-lg mb-8 text-center">
                 <h1 className="text-3xl font-bold mb-2">Weekly Project Budget Report</h1>
-                <p className="text-orange-100">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p className="text-orange-100">
+                  {reportData?.summary?.reportDate || new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
               </div>
 
               <div className="bg-gray-50 p-6 rounded-lg mb-8">
@@ -513,38 +522,52 @@ export default function Chat() {
                 <p className="text-gray-600">This report shows the total hours and budget utilization for each project so far this month.</p>
               </div>
 
-              <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
-                <table className="w-full">
-                  <thead className="bg-gray-800 text-white">
-                    <tr>
-                      <th className="px-6 py-4 text-left">Project Name</th>
-                      <th className="px-6 py-4 text-center">Hours Logged</th>
-                      <th className="px-6 py-4 text-center">Total Budget</th>
-                      <th className="px-6 py-4 text-center">Budget Used</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b">
-                      <td className="px-6 py-4">Sample Project A</td>
-                      <td className="px-6 py-4 text-center">45.5h</td>
-                      <td className="px-6 py-4 text-center">$15,000</td>
-                      <td className="px-6 py-4 text-center text-green-600 font-semibold">23.4%</td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="px-6 py-4">Sample Project B</td>
-                      <td className="px-6 py-4 text-center">32.0h</td>
-                      <td className="px-6 py-4 text-center">$8,000</td>
-                      <td className="px-6 py-4 text-center text-red-600 font-semibold">87.2%</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              {reportLoading ? (
+                <div className="bg-white rounded-lg shadow-lg p-8 mb-8 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading real project data from Harvest...</p>
+                </div>
+              ) : reportData?.projects?.length ? (
+                <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+                  <table className="w-full">
+                    <thead className="bg-gray-800 text-white">
+                      <tr>
+                        <th className="px-6 py-4 text-left">Project Name</th>
+                        <th className="px-6 py-4 text-center">Hours Logged</th>
+                        <th className="px-6 py-4 text-center">Total Budget</th>
+                        <th className="px-6 py-4 text-center">Budget Used</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.projects.map((project, index) => (
+                        <tr key={project.id} className="border-b">
+                          <td className="px-6 py-4">{project.name}</td>
+                          <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
+                          <td className="px-6 py-4 text-center">
+                            {project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}
+                          </td>
+                          <td className={`px-6 py-4 text-center font-semibold ${
+                            project.budgetUsed > 80 ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            {project.budget > 0 ? `${project.budgetUsed.toFixed(1)}%` : 'N/A'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow-lg p-8 mb-8 text-center">
+                  <p className="text-gray-600 mb-4">No project data found for this month.</p>
+                  <p className="text-sm text-gray-500">Make sure you have time entries logged in Harvest for the current month.</p>
+                </div>
+              )}
 
               <div className="bg-gray-100 p-6 rounded-lg">
                 <h3 className="text-xl font-semibold text-gray-800 mb-4">Summary</h3>
                 <div className="space-y-2">
-                  <p><strong>Total Hours This Month:</strong> 77.5 hours</p>
-                  <p><strong>Projects Tracked:</strong> 2</p>
+                  <p><strong>Total Hours This Month:</strong> {reportData?.summary?.totalHours?.toFixed(1) || '0'} hours</p>
+                  <p><strong>Projects Tracked:</strong> {reportData?.summary?.projectCount || 0}</p>
                 </div>
                 <p className="text-xs text-gray-500 mt-6">
                   This report is automatically generated by your Harvest Assistant every Monday at 8:00 AM CST.
