@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { parseNaturalLanguageQuery, generateResponse } from "./services/openai";
 import { HarvestService } from "./services/harvest";
 import { reportScheduler } from "./services/scheduler";
-import { insertChatMessageSchema, insertHarvestConfigSchema } from "@shared/schema";
+import { insertChatMessageSchema, insertHarvestConfigSchema, insertEmailConfigSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -172,13 +172,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/config", async (req, res) => {
     try {
       const harvestConfig = await storage.getHarvestConfig();
+      const emailConfig = await storage.getEmailConfig();
       
       // For security, only return if configs exist, not the actual values
       const response = {
         harvestConfigured: !!harvestConfig,
-        emailConfigured: !!(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD),
+        emailConfigured: !!emailConfig,
         harvestAccountId: harvestConfig?.accountId || "",
-        emailUser: process.env.EMAIL_USER || ""
+        emailUser: emailConfig?.emailUser || ""
       };
       
       res.json(response);
@@ -191,20 +192,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Configure email settings
   app.post("/api/email/config", async (req, res) => {
     try {
-      const { emailUser, emailPassword } = req.body;
-      
-      if (!emailUser || !emailPassword) {
-        return res.status(400).json({ error: "Email user and password are required" });
+      const validation = insertEmailConfigSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid email configuration data", details: validation.error });
       }
+
+      const { emailUser, emailPassword } = validation.data;
       
-      // Store email config in environment variables (for this session)
-      process.env.EMAIL_USER = emailUser;
-      process.env.EMAIL_PASSWORD = emailPassword;
-      
-      res.json({ success: true, message: "Email configuration saved successfully" });
+      await storage.saveEmailConfig({ emailUser, emailPassword });
+      res.json({ success: true, message: "Email settings configured successfully" });
     } catch (error) {
       console.error("Email config error:", error);
-      res.status(500).json({ error: "Failed to save email configuration" });
+      res.status(500).json({ error: "Failed to configure email settings" });
     }
   });
 

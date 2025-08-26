@@ -25,6 +25,13 @@ export const harvestConfig = pgTable("harvest_config", {
   isActive: boolean("is_active").default(true),
 });
 
+export const emailConfig = pgTable("email_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  emailUser: text("email_user").notNull(),
+  emailPassword: text("email_password").notNull(),
+  isActive: boolean("is_active").default(true),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -42,12 +49,19 @@ export const insertHarvestConfigSchema = createInsertSchema(harvestConfig).pick(
   accessToken: true,
 });
 
+export const insertEmailConfigSchema = createInsertSchema(emailConfig).pick({
+  emailUser: true,
+  emailPassword: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type HarvestConfig = typeof harvestConfig.$inferSelect;
 export type InsertHarvestConfig = z.infer<typeof insertHarvestConfigSchema>;
+export type EmailConfig = typeof emailConfig.$inferSelect;
+export type InsertEmailConfig = z.infer<typeof insertEmailConfigSchema>;
 
 // API Response Types
 export interface HarvestTimeEntry {

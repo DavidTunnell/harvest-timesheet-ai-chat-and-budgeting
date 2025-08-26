@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type ChatMessage, type InsertChatMessage, type HarvestConfig, type InsertHarvestConfig, users, chatMessages, harvestConfig } from "@shared/schema";
+import { type User, type InsertUser, type ChatMessage, type InsertChatMessage, type HarvestConfig, type InsertHarvestConfig, type EmailConfig, type InsertEmailConfig, users, chatMessages, harvestConfig, emailConfig } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
@@ -15,6 +15,10 @@ export interface IStorage {
   // Harvest configuration operations
   getHarvestConfig(): Promise<HarvestConfig | undefined>;
   saveHarvestConfig(config: InsertHarvestConfig): Promise<HarvestConfig>;
+  
+  // Email configuration operations
+  getEmailConfig(): Promise<EmailConfig | undefined>;
+  saveEmailConfig(config: InsertEmailConfig): Promise<EmailConfig>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -71,17 +75,39 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return newConfig;
   }
+
+  async getEmailConfig(): Promise<EmailConfig | undefined> {
+    const configs = await db.select().from(emailConfig).where(eq(emailConfig.isActive, true)).limit(1);
+    return configs[0] || undefined;
+  }
+
+  async saveEmailConfig(config: InsertEmailConfig): Promise<EmailConfig> {
+    // Deactivate any existing configs
+    await db.update(emailConfig).set({ isActive: false });
+    
+    // Insert new config
+    const [newConfig] = await db
+      .insert(emailConfig)
+      .values({
+        ...config,
+        isActive: true
+      })
+      .returning();
+    return newConfig;
+  }
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private chatMessages: Map<string, ChatMessage>;
   private harvestConfig: HarvestConfig | undefined;
+  private emailConfig: EmailConfig | undefined;
 
   constructor() {
     this.users = new Map();
     this.chatMessages = new Map();
     this.harvestConfig = undefined;
+    this.emailConfig = undefined;
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -133,6 +159,21 @@ export class MemStorage implements IStorage {
     };
     this.harvestConfig = harvestConfig;
     return harvestConfig;
+  }
+
+  async getEmailConfig(): Promise<EmailConfig | undefined> {
+    return this.emailConfig;
+  }
+
+  async saveEmailConfig(config: InsertEmailConfig): Promise<EmailConfig> {
+    const id = randomUUID();
+    const emailConfig: EmailConfig = {
+      ...config,
+      id,
+      isActive: true
+    };
+    this.emailConfig = emailConfig;
+    return emailConfig;
   }
 }
 

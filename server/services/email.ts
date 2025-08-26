@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { storage } from '../storage';
 
 // Create a transporter using Gmail SMTP (free)
 // You can use any email provider's SMTP settings
@@ -27,21 +28,33 @@ export interface EmailOptions {
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
     // Check if email credentials are configured
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-      console.error('Email credentials not configured. Please set EMAIL_USER and EMAIL_PASSWORD in settings.');
+    const emailConfig = await storage.getEmailConfig();
+    if (!emailConfig) {
+      console.error('Email credentials not configured. Please set email credentials in settings.');
       return false;
     }
 
-    console.log(`Attempting to send email from ${process.env.EMAIL_USER} to ${options.to}`);
+    console.log(`Attempting to send email from ${emailConfig.emailUser} to ${options.to}`);
     
-    const transporter = createTransporter();
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: emailConfig.emailUser,
+        pass: emailConfig.emailPassword
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
     
     // Verify the transporter configuration
     await transporter.verify();
     console.log('SMTP connection verified successfully');
     
     const mailOptions = {
-      from: options.from || process.env.EMAIL_USER,
+      from: options.from || emailConfig.emailUser,
       to: options.to,
       subject: options.subject,
       html: options.html
