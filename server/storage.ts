@@ -1,5 +1,7 @@
-import { type User, type InsertUser, type ChatMessage, type InsertChatMessage, type HarvestConfig, type InsertHarvestConfig } from "@shared/schema";
+import { type User, type InsertUser, type ChatMessage, type InsertChatMessage, type HarvestConfig, type InsertHarvestConfig, users, chatMessages, harvestConfig } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -13,6 +15,62 @@ export interface IStorage {
   // Harvest configuration operations
   getHarvestConfig(): Promise<HarvestConfig | undefined>;
   saveHarvestConfig(config: InsertHarvestConfig): Promise<HarvestConfig>;
+}
+
+export class DatabaseStorage implements IStorage {
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async getChatMessages(): Promise<ChatMessage[]> {
+    return await db.select().from(chatMessages).orderBy(chatMessages.timestamp);
+  }
+
+  async createChatMessage(insertMessage: InsertChatMessage): Promise<ChatMessage> {
+    const [message] = await db
+      .insert(chatMessages)
+      .values({
+        ...insertMessage,
+        harvestData: insertMessage.harvestData ?? null,
+        queryType: insertMessage.queryType ?? null
+      })
+      .returning();
+    return message;
+  }
+
+  async getHarvestConfig(): Promise<HarvestConfig | undefined> {
+    const configs = await db.select().from(harvestConfig).where(eq(harvestConfig.isActive, true)).limit(1);
+    return configs[0] || undefined;
+  }
+
+  async saveHarvestConfig(config: InsertHarvestConfig): Promise<HarvestConfig> {
+    // Deactivate any existing configs
+    await db.update(harvestConfig).set({ isActive: false });
+    
+    // Insert new config
+    const [newConfig] = await db
+      .insert(harvestConfig)
+      .values({
+        ...config,
+        isActive: true
+      })
+      .returning();
+    return newConfig;
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -78,4 +136,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
