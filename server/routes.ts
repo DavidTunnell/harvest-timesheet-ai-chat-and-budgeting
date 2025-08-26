@@ -168,6 +168,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current configurations
+  app.get("/api/config", async (req, res) => {
+    try {
+      const harvestConfig = await storage.getHarvestConfig();
+      
+      // For security, only return if configs exist, not the actual values
+      const response = {
+        harvestConfigured: !!harvestConfig,
+        emailConfigured: !!(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD),
+        harvestAccountId: harvestConfig?.accountId || "",
+        emailUser: process.env.EMAIL_USER || ""
+      };
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Config retrieval error:", error);
+      res.status(500).json({ error: "Failed to retrieve configuration" });
+    }
+  });
+
   // Configure email settings
   app.post("/api/email/config", async (req, res) => {
     try {

@@ -52,6 +52,12 @@ export default function Chat() {
     refetchInterval: 30000,
   });
 
+  // Load current configuration
+  const { data: currentConfig } = useQuery({
+    queryKey: ["/api/config"],
+    enabled: isSettingsOpen, // Only load when settings modal is open
+  });
+
   // Load chat history
   const { data: chatHistory } = useQuery<ChatMessage[]>({
     queryKey: ["/api/chat/history"]
@@ -63,6 +69,15 @@ export default function Chat() {
       setMessages(chatHistory);
     }
   }, [chatHistory]);
+
+  // Update form fields when config loads
+  useEffect(() => {
+    if (currentConfig && isSettingsOpen) {
+      setAccountId(currentConfig.harvestAccountId || "");
+      setEmailUser(currentConfig.emailUser || "");
+      // Don't prefill passwords for security
+    }
+  }, [currentConfig, isSettingsOpen]);
 
   // Send message mutation
   const sendMessageMutation = useMutation({
@@ -176,15 +191,20 @@ export default function Chat() {
     if (emailUser && emailPassword) {
       configureEmailMutation.mutate();
     }
-    if (!accountId || !accessToken || !emailUser || !emailPassword) {
+    // At least one configuration should be saved
+    if ((!accountId || !accessToken) && (!emailUser || !emailPassword)) {
       toast({
-        title: "Incomplete Settings",
-        description: "Please fill in all required fields",
+        title: "No Settings to Save",
+        description: "Please configure at least Harvest API or Email settings",
         variant: "destructive"
       });
       return;
     }
-    setIsSettingsOpen(false);
+    
+    // Only close modal if all attempted configurations succeeded
+    setTimeout(() => {
+      setIsSettingsOpen(false);
+    }, 500);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
