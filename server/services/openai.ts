@@ -97,14 +97,17 @@ Examples:
 export async function generateResponse(query: string, data: any, queryType: string): Promise<string> {
   try {
     const prompt = `User asked: "${query}"
+Query type: ${queryType}
+Found ${Array.isArray(data) ? data.length : 0} entries.
+
 Data: ${JSON.stringify(data)}
 
-Provide a helpful summary of the findings.`;
+Provide a helpful, detailed summary. If data exists, highlight key details like user names, hours, projects, and dates. Be specific about what you found.`;
 
     const response = await anthropic.messages.create({
       // "claude-sonnet-4-20250514"
       model: DEFAULT_MODEL_STR,
-      max_tokens: 200,
+      max_tokens: 300,
       system: "Summarize Harvest data conversationally.",
       messages: [
         {

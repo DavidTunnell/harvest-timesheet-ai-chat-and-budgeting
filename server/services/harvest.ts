@@ -60,7 +60,18 @@ export class HarvestService {
         headers: this.getHeaders()
       });
 
-      return response.data.time_entries || [];
+      let entries = response.data.time_entries || [];
+      
+      // Apply client-side filtering for user names if specified
+      if (params.filters && (params.filters.userName || params.filters.user)) {
+        const searchName = (params.filters.userName || params.filters.user).toLowerCase();
+        entries = entries.filter(entry => {
+          const userName = entry.user?.name?.toLowerCase() || '';
+          return userName.includes(searchName);
+        });
+      }
+
+      return entries;
     } catch (error) {
       console.error('Error fetching time entries:', error);
       throw new Error('Failed to fetch time entries from Harvest API');
