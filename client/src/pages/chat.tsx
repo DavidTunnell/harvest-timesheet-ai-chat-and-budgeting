@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { MessageBubble } from "@/components/ui/message-bubble";
 import { DataTable } from "@/components/ui/data-table";
 import { SummaryCard } from "@/components/ui/summary-card";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Settings, Send, Mic, Mail } from "lucide-react";
+import { Clock, Settings, Send, Mic, Mail, MessageCircle } from "lucide-react";
 
 interface ChatMessage {
   id: string;
@@ -34,6 +35,7 @@ export default function Chat() {
   const [emailUser, setEmailUser] = useState("");
   const [emailPassword, setEmailPassword] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -268,16 +270,6 @@ export default function Chat() {
               }`}></div>
               <span>{harvestStatus?.connected ? 'Connected' : 'Disconnected'}</span>
             </div>
-            <a
-              href="/weekly-report.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center space-x-2 px-3 py-1 rounded-full text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-              data-testid="link-weekly-report"
-            >
-              <Mail className="h-3 w-3" />
-              <span>Weekly Report</span>
-            </a>
             <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
               <DialogTrigger asChild>
                 <Button 
@@ -386,7 +378,21 @@ export default function Chat() {
         </div>
       </header>
 
-      {/* Messages */}
+      {/* Tab Navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="chat" className="flex items-center space-x-2">
+            <MessageCircle className="h-4 w-4" />
+            <span>Chat</span>
+          </TabsTrigger>
+          <TabsTrigger value="report" className="flex items-center space-x-2">
+            <Mail className="h-4 w-4" />
+            <span>Weekly Report</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="chat" className="flex-1 flex flex-col mt-0">
+          {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="chat-messages">
         {/* Welcome Message */}
         {messages.length === 0 && (
@@ -491,6 +497,19 @@ export default function Chat() {
           ))}
         </div>
       </div>
+        </TabsContent>
+
+        <TabsContent value="report" className="flex-1 p-4">
+          <div className="h-full w-full">
+            <iframe 
+              src="/weekly-report.html" 
+              className="w-full h-full border-0 rounded-lg shadow-lg"
+              title="Weekly Report"
+              data-testid="iframe-weekly-report"
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
