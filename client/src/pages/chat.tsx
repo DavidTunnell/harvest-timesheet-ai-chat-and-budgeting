@@ -55,7 +55,10 @@ export default function Chat() {
   });
 
   // Load current configuration
-  const { data: currentConfig, refetch: refetchConfig } = useQuery({
+  const { data: currentConfig, refetch: refetchConfig } = useQuery<{
+    harvestAccountId?: string;
+    emailUser?: string;
+  }>({
     queryKey: ["/api/config"],
     enabled: isSettingsOpen, // Only load when settings modal is open
     refetchOnMount: true,
@@ -63,7 +66,20 @@ export default function Chat() {
   });
 
   // Load report data
-  const { data: reportData, isLoading: reportLoading } = useQuery({
+  const { data: reportData, isLoading: reportLoading } = useQuery<{
+    projects: Array<{
+      id: number;
+      name: string;
+      totalHours: number;
+      budget: number;
+      budgetUsed: number;
+    }>;
+    summary: {
+      totalHours: number;
+      projectCount: number;
+      reportDate: string;
+    };
+  }>({
     queryKey: ["/api/reports/data"],
     enabled: activeTab === "report", // Only load when report tab is active
     refetchOnWindowFocus: false,
@@ -527,7 +543,7 @@ export default function Chat() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
                   <p className="text-gray-600">Loading real project data from Harvest...</p>
                 </div>
-              ) : reportData?.projects?.length ? (
+              ) : reportData && reportData.projects && reportData.projects.length > 0 ? (
                 <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
                   <table className="w-full">
                     <thead className="bg-gray-800 text-white">
@@ -541,13 +557,14 @@ export default function Chat() {
                     <tbody>
                       {reportData.projects.map((project, index) => (
                         <tr key={project.id} className="border-b">
-                          <td className="px-6 py-4">{project.name}</td>
+                          <td className="px-6 py-4 font-medium">{project.name}</td>
                           <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
                           <td className="px-6 py-4 text-center">
                             {project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}
                           </td>
                           <td className={`px-6 py-4 text-center font-semibold ${
-                            project.budgetUsed > 80 ? 'text-red-600' : 'text-green-600'
+                            project.budgetUsed > 80 ? 'text-red-600' : 
+                            project.budgetUsed > 60 ? 'text-yellow-600' : 'text-green-600'
                           }`}>
                             {project.budget > 0 ? `${project.budgetUsed.toFixed(1)}%` : 'N/A'}
                           </td>

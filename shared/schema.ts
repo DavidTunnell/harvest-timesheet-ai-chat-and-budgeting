@@ -80,6 +80,8 @@ export interface HarvestProject {
   code: string;
   is_active: boolean;
   budget: number;
+  budget_spent?: number;
+  budget_remaining?: number;
   client: {
     id: number;
     name: string;

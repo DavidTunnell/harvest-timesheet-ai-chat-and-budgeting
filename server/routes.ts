@@ -241,6 +241,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all projects to get budget information
       const projects = await harvestService.getProjects();
 
+      // Filter for only the requested projects
+      const targetProjects = [
+        "Educational data systems",
+        "cloudsee drive", 
+        "Vision AST"
+      ];
+
       // Group time entries by project and calculate totals
       const projectMap = new Map();
       let totalHours = 0;
@@ -250,6 +257,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const project = projects.find(p => p.id === projectId);
         
         if (!project) return;
+        
+        // Only include the specific projects requested
+        const isTargetProject = targetProjects.some(target => 
+          project.name.toLowerCase().includes(target.toLowerCase())
+        );
+        
+        if (!isTargetProject) return;
 
         if (!projectMap.has(projectId)) {
           projectMap.set(projectId, {
@@ -257,7 +271,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             name: project.name,
             totalHours: 0,
             budget: project.budget || 0,
-            avgHourlyRate: 75 // Default hourly rate
+            budgetSpent: project.budget_spent || 0,
+            budgetRemaining: project.budget_remaining || 0
           });
         }
 
@@ -272,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .map(project => ({
           ...project,
           budgetUsed: project.budget > 0 
-            ? ((project.totalHours * project.avgHourlyRate) / project.budget * 100)
+            ? (project.budgetSpent / project.budget * 100)
             : 0
         }));
 
