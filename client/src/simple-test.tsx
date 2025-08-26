@@ -14,7 +14,7 @@ export default function SimpleTest() {
         <p>✅ CloudSee Drive: 436.25 hours this month</p>
         <p>✅ Educational Data Services (Retained Support Services): 204.34 hours this month</p>
         <p>✅ Vision AST Maintenance: 158.25 hours this month</p>
-        <p>✅ <strong>Total: 798.84 hours tracked across all 3 projects</strong></p>
+        <p>✅ <strong>Total: 798.84 hours tracked ($26,744.45 billed) across all 3 projects</strong></p>
       </div>
 
       <div style={{ marginTop: '15px', padding: '15px', backgroundColor: '#f0f8ff', border: '1px solid #0066cc', borderRadius: '5px' }}>

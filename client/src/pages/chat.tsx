@@ -73,6 +73,9 @@ export default function Chat() {
       totalHours: number;
       budget: number;
       budgetUsed: number;
+      budgetPercentComplete?: number;
+      billedAmount?: number;
+      billableHours?: number;
     }>;
     summary: {
       totalHours: number;
@@ -550,6 +553,9 @@ export default function Chat() {
                       <tr>
                         <th className="px-6 py-4 text-left">Project Name</th>
                         <th className="px-6 py-4 text-center">Hours Logged</th>
+                        <th className="px-6 py-4 text-center">Billable Hours</th>
+                        <th className="px-6 py-4 text-center">Amount Billed</th>
+                        <th className="px-6 py-4 text-center">Budget %</th>
                         <th className="px-6 py-4 text-center">Total Budget</th>
                         <th className="px-6 py-4 text-center">Budget Used</th>
                       </tr>
@@ -559,6 +565,17 @@ export default function Chat() {
                         <tr key={project.id} className="border-b">
                           <td className="px-6 py-4 font-medium">{project.name}</td>
                           <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
+                          <td className="px-6 py-4 text-center">{project.billableHours?.toFixed(1) || '0'}h</td>
+                          <td className="px-6 py-4 text-center">${project.billedAmount?.toFixed(2) || '0.00'}</td>
+                          <td className="px-6 py-4 text-center">
+                            <span className={
+                              project.budgetPercentComplete > 90 ? 'text-red-600 font-semibold' : 
+                              project.budgetPercentComplete > 75 ? 'text-yellow-600 font-semibold' : 
+                              'text-green-600'
+                            }>
+                              {project.budgetPercentComplete?.toFixed(1) || '0'}%
+                            </span>
+                          </td>
                           <td className="px-6 py-4 text-center">
                             {project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}
                           </td>
@@ -584,6 +601,8 @@ export default function Chat() {
                 <h3 className="text-xl font-semibold text-gray-800 mb-4">Summary</h3>
                 <div className="space-y-2">
                   <p><strong>Total Hours This Month:</strong> {reportData?.summary?.totalHours?.toFixed(1) || '0'} hours</p>
+                  <p><strong>Total Billable Hours:</strong> {reportData?.projects?.reduce((sum, p) => sum + (p.billableHours || 0), 0).toFixed(1) || '0'} hours</p>
+                  <p><strong>Total Amount Billed:</strong> ${reportData?.projects?.reduce((sum, p) => sum + (p.billedAmount || 0), 0).toFixed(2) || '0.00'}</p>
                   <p><strong>Projects Tracked:</strong> {reportData?.summary?.projectCount || 0}</p>
                 </div>
                 <p className="text-xs text-gray-500 mt-6">
