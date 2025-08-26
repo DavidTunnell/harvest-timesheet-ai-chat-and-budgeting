@@ -10,7 +10,7 @@ import { MessageBubble } from "@/components/ui/message-bubble";
 import { DataTable } from "@/components/ui/data-table";
 import { SummaryCard } from "@/components/ui/summary-card";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Settings, Send, Mic } from "lucide-react";
+import { Clock, Settings, Send, Mic, Mail } from "lucide-react";
 
 interface ChatMessage {
   id: string;
@@ -31,6 +31,8 @@ export default function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [accountId, setAccountId] = useState("");
   const [accessToken, setAccessToken] = useState("");
+  const [emailUser, setEmailUser] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -111,7 +113,6 @@ export default function Chat() {
         title: "Success",
         description: "Harvest API configured successfully"
       });
-      setIsSettingsOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/harvest/status"] });
     },
     onError: (error: any) => {
@@ -122,6 +123,69 @@ export default function Chat() {
       });
     }
   });
+
+  // Configure Email mutation
+  const configureEmailMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/email/config", {
+        emailUser,
+        emailPassword
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Email configuration saved successfully"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Email Configuration Error",
+        description: error.message || "Failed to configure email settings",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Test weekly report mutation
+  const testReportMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/reports/trigger");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Test report sent successfully to david@webapper.com"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Test Report Error",
+        description: error.message || "Failed to send test report",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleSaveAllSettings = () => {
+    if (accountId && accessToken) {
+      configureHarvestMutation.mutate();
+    }
+    if (emailUser && emailPassword) {
+      configureEmailMutation.mutate();
+    }
+    if (!accountId || !accessToken || !emailUser || !emailPassword) {
+      toast({
+        title: "Incomplete Settings",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+    setIsSettingsOpen(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,39 +248,95 @@ export default function Chat() {
                   <Settings className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Harvest API Configuration</DialogTitle>
+                  <DialogTitle>Settings</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="accountId">Account ID</Label>
-                    <Input
-                      id="accountId"
-                      value={accountId}
-                      onChange={(e) => setAccountId(e.target.value)}
-                      placeholder="Your Harvest Account ID"
-                      data-testid="input-account-id"
-                    />
+                <div className="space-y-6">
+                  {/* Harvest API Section */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-5 w-5 text-harvest-orange" />
+                      <h3 className="text-lg font-semibold">Harvest API</h3>
+                    </div>
+                    <div>
+                      <Label htmlFor="accountId">Account ID</Label>
+                      <Input
+                        id="accountId"
+                        value={accountId}
+                        onChange={(e) => setAccountId(e.target.value)}
+                        placeholder="Your Harvest Account ID"
+                        data-testid="input-account-id"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="accessToken">Personal Access Token</Label>
+                      <Input
+                        id="accessToken"
+                        type="password"
+                        value={accessToken}
+                        onChange={(e) => setAccessToken(e.target.value)}
+                        placeholder="Your Harvest API Token"
+                        data-testid="input-access-token"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="accessToken">Personal Access Token</Label>
-                    <Input
-                      id="accessToken"
-                      type="password"
-                      value={accessToken}
-                      onChange={(e) => setAccessToken(e.target.value)}
-                      placeholder="Your Harvest API Token"
-                      data-testid="input-access-token"
-                    />
+
+                  {/* Email Settings Section */}
+                  <div className="space-y-4 border-t pt-4">
+                    <div className="flex items-center space-x-2">
+                      <Mail className="h-5 w-5 text-blue-600" />
+                      <h3 className="text-lg font-semibold">Email Reports</h3>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Configure email settings to send weekly project budget reports to david@webapper.com every Monday at 8:00 AM CST.
+                    </p>
+                    <div>
+                      <Label htmlFor="emailUser">Gmail Address</Label>
+                      <Input
+                        id="emailUser"
+                        type="email"
+                        value={emailUser}
+                        onChange={(e) => setEmailUser(e.target.value)}
+                        placeholder="your-email@gmail.com"
+                        data-testid="input-email-user"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="emailPassword">Gmail App Password</Label>
+                      <Input
+                        id="emailPassword"
+                        type="password"
+                        value={emailPassword}
+                        onChange={(e) => setEmailPassword(e.target.value)}
+                        placeholder="Gmail App Password (not your regular password)"
+                        data-testid="input-email-password"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Generate an App Password in your Google Account settings under Security → 2-Step Verification → App passwords.
+                      </p>
+                    </div>
+                    
+                    {/* Test Report Button */}
+                    <Button 
+                      variant="outline"
+                      onClick={() => testReportMutation.mutate()}
+                      disabled={testReportMutation.isPending}
+                      className="w-full"
+                      data-testid="button-test-report"
+                    >
+                      {testReportMutation.isPending ? "Sending..." : "Send Test Report"}
+                    </Button>
                   </div>
+
+                  {/* Save All Button */}
                   <Button 
-                    onClick={() => configureHarvestMutation.mutate()}
-                    disabled={!accountId || !accessToken || configureHarvestMutation.isPending}
-                    className="w-full"
-                    data-testid="button-save-config"
+                    onClick={handleSaveAllSettings}
+                    disabled={configureHarvestMutation.isPending || configureEmailMutation.isPending}
+                    className="w-full bg-harvest-orange hover:bg-harvest-dark"
+                    data-testid="button-save-all-settings"
                   >
-                    {configureHarvestMutation.isPending ? "Saving..." : "Save Configuration"}
+                    {(configureHarvestMutation.isPending || configureEmailMutation.isPending) ? "Saving..." : "Save All Settings"}
                   </Button>
                 </div>
               </DialogContent>

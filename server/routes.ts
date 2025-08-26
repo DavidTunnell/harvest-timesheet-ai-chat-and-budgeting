@@ -168,6 +168,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Configure email settings
+  app.post("/api/email/config", async (req, res) => {
+    try {
+      const { emailUser, emailPassword } = req.body;
+      
+      if (!emailUser || !emailPassword) {
+        return res.status(400).json({ error: "Email user and password are required" });
+      }
+      
+      // Store email config in environment variables (for this session)
+      process.env.EMAIL_USER = emailUser;
+      process.env.EMAIL_PASSWORD = emailPassword;
+      
+      res.json({ success: true, message: "Email configuration saved successfully" });
+    } catch (error) {
+      console.error("Email config error:", error);
+      res.status(500).json({ error: "Failed to save email configuration" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
