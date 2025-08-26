@@ -186,11 +186,20 @@ export default function Chat() {
   // Configure Email mutation
   const configureEmailMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/email/config", {
-        emailUser,
-        emailPassword,
-        reportRecipients: reportRecipients || "david@webapper.com"
-      });
+      // Allow partial updates if email is already configured
+      const isUpdate = currentConfig?.emailConfigured;
+      
+      const body: any = {};
+      if (emailUser) body.emailUser = emailUser;
+      if (emailPassword) body.emailPassword = emailPassword;
+      if (reportRecipients !== undefined) body.reportRecipients = reportRecipients || "david@webapper.com";
+      
+      // For new configurations, require both email and password
+      if (!isUpdate && (!emailUser || !emailPassword)) {
+        throw new Error("Email user and password are required for initial setup");
+      }
+      
+      const response = await apiRequest("POST", "/api/email/config", body);
       return response.json();
     },
     onSuccess: () => {
@@ -233,11 +242,17 @@ export default function Chat() {
     if (accountId && accessToken) {
       configureHarvestMutation.mutate();
     }
-    if (emailUser && emailPassword) {
+    // Trigger email mutation if any email field has a value or if email is already configured and we're updating recipients
+    if (emailUser || emailPassword || (currentConfig?.emailConfigured && reportRecipients !== undefined)) {
       configureEmailMutation.mutate();
     }
-    // At least one configuration should be saved
-    if ((!accountId || !accessToken) && (!emailUser || !emailPassword)) {
+    // At least one configuration should be saved or updated
+    const harvestChanging = accountId || accessToken;
+    const emailChanging = emailUser || emailPassword || reportRecipients;
+    const harvestAlreadyConfigured = currentConfig?.harvestConfigured;
+    const emailAlreadyConfigured = currentConfig?.emailConfigured;
+    
+    if (!harvestChanging && !emailChanging && !harvestAlreadyConfigured && !emailAlreadyConfigured) {
       toast({
         title: "No Settings to Save",
         description: "Please configure at least Harvest API or Email settings",

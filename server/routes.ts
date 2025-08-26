@@ -193,7 +193,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Configure email settings
   app.post("/api/email/config", async (req, res) => {
     try {
-      const validation = insertEmailConfigSchema.safeParse(req.body);
+      // Create a partial schema for updates
+      const partialEmailSchema = insertEmailConfigSchema.partial();
+      const validation = partialEmailSchema.safeParse(req.body);
       if (!validation.success) {
         return res.status(400).json({ error: "Invalid email configuration data", details: validation.error });
       }

@@ -81,19 +81,38 @@ export class DatabaseStorage implements IStorage {
     return configs[0] || undefined;
   }
 
-  async saveEmailConfig(config: InsertEmailConfig): Promise<EmailConfig> {
-    // Deactivate any existing configs
-    await db.update(emailConfig).set({ isActive: false });
+  async saveEmailConfig(config: Partial<InsertEmailConfig>): Promise<EmailConfig> {
+    const existing = await this.getEmailConfig();
     
-    // Insert new config
-    const [newConfig] = await db
-      .insert(emailConfig)
-      .values({
-        ...config,
-        isActive: true
-      })
-      .returning();
-    return newConfig;
+    if (existing) {
+      // Update existing configuration
+      const updateData: any = { isActive: true };
+      if (config.emailUser !== undefined) updateData.emailUser = config.emailUser;
+      if (config.emailPassword !== undefined) updateData.emailPassword = config.emailPassword;
+      if (config.reportRecipients !== undefined) updateData.reportRecipients = config.reportRecipients || 'david@webapper.com';
+      
+      const [updatedConfig] = await db
+        .update(emailConfig)
+        .set(updateData)
+        .where(eq(emailConfig.id, existing.id))
+        .returning();
+      return updatedConfig;
+    } else {
+      // Create new configuration - require email and password
+      if (!config.emailUser || !config.emailPassword) {
+        throw new Error("Email user and password are required for new configuration");
+      }
+      
+      const [newConfig] = await db
+        .insert(emailConfig)
+        .values({
+          ...config,
+          reportRecipients: config.reportRecipients || 'david@webapper.com',
+          isActive: true
+        })
+        .returning();
+      return newConfig;
+    }
   }
 }
 
