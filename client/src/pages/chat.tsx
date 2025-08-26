@@ -268,6 +268,16 @@ export default function Chat() {
               }`}></div>
               <span>{harvestStatus?.connected ? 'Connected' : 'Disconnected'}</span>
             </div>
+            <a
+              href="/weekly-report.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 px-3 py-1 rounded-full text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+              data-testid="link-weekly-report"
+            >
+              <Mail className="h-3 w-3" />
+              <span>Weekly Report</span>
+            </a>
             <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
               <DialogTrigger asChild>
                 <Button 
