@@ -261,11 +261,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         if (isTargetProject) {
+          // Set known budgets from user data
+          let projectBudget = project.budget || 0;
+          if (project.name.toLowerCase().includes('retained support services') || 
+              project.name.toLowerCase().includes('educational data services')) {
+            projectBudget = 15500; // $15,500 for EDS
+          } else if (project.name.toLowerCase().includes('vision ast')) {
+            projectBudget = 14700; // $14,700 for Vision AST
+          }
+          
           projectMap.set(project.id, {
             id: project.id,
             name: project.name,
             totalHours: 0,
-            budget: project.budget || 0,
+            budget: projectBudget,
             budgetSpent: project.budget_spent || 0,
             budgetRemaining: project.budget_remaining || 0,
             billedAmount: 0,
@@ -299,11 +308,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           
           if (isTargetProject) {
+            // Set known budgets for new projects found in time entries
+            let projectBudget = 0;
+            if (projectName.toLowerCase().includes('retained support services') || 
+                projectName.toLowerCase().includes('educational data services')) {
+              projectBudget = 15500; // $15,500 for EDS
+            } else if (projectName.toLowerCase().includes('vision ast')) {
+              projectBudget = 14700; // $14,700 for Vision AST
+            }
+            
             projectMap.set(projectId, {
               id: projectId,
               name: projectName,
               totalHours: entry.hours,
-              budget: 0,
+              budget: projectBudget,
               budgetSpent: 0,
               budgetRemaining: 0,
               billedAmount: entry.billable ? (entry.billable_rate || 0) * entry.hours : 0,
@@ -322,7 +340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? Math.round((project.budgetSpent / project.budget * 100) * 100) / 100
             : 0,
           budgetPercentComplete: project.budget > 0 
-            ? Math.round((project.budgetSpent / project.budget * 100) * 100) / 100
+            ? Math.round((project.billedAmount / project.budget * 100) * 100) / 100
             : 0,
           billedAmount: Math.round(project.billedAmount * 100) / 100,
           billableHours: Math.round(project.billableHours * 100) / 100

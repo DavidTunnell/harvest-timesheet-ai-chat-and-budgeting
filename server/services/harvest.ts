@@ -84,12 +84,14 @@ export class HarvestService {
       const response = await axios.get(`${HARVEST_BASE_URL}/projects`, {
         headers: this.getHeaders(),
         params: {
-          per_page: 100 // Get more results per page
+          per_page: 100, // Get more results per page
+          is_active: true // Only get active projects to ensure budget data
         }
       });
 
-      console.log(`Harvest API returned ${response.data.projects?.length || 0} projects`);
-      return response.data.projects || [];
+      const projects = response.data.projects || [];
+      console.log(`Harvest API returned ${projects.length} projects`);
+      return projects;
     } catch (error) {
       console.error('Error fetching projects:', error);
       throw new Error('Failed to fetch projects from Harvest API');
