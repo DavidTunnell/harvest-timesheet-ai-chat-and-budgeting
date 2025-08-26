@@ -208,6 +208,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to see all projects
+  app.get("/api/debug/projects", async (req, res) => {
+    try {
+      const harvestConfig = await storage.getHarvestConfig();
+      if (!harvestConfig) {
+        return res.status(400).json({ error: "Harvest API not configured" });
+      }
+
+      const harvestService = new HarvestService({
+        accountId: harvestConfig.accountId,
+        accessToken: harvestConfig.accessToken
+      });
+
+      const projects = await harvestService.getProjects();
+      res.json({ projects: projects.map(p => ({ id: p.id, name: p.name })) });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch projects" });
+    }
+  });
+
   // Get weekly report data
   app.get("/api/reports/data", async (req, res) => {
     try {
@@ -241,33 +261,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all projects to get budget information
       const projects = await harvestService.getProjects();
 
-      // Filter for only the requested projects
+      // Filter for only the requested projects (broader matching)
       const targetProjects = [
-        "Educational data systems",
-        "cloudsee drive", 
-        "Vision AST"
+        { keywords: ["educational", "eds", "data systems"], name: "Educational Data Systems" },
+        { keywords: ["cloudsee", "cloud see"], name: "CloudSee Drive" },
+        { keywords: ["vision", "ast"], name: "Vision AST" }
       ];
 
-      // Group time entries by project and calculate totals
+      // First, find all target projects (even if they have no time entries this month)
       const projectMap = new Map();
       let totalHours = 0;
 
-      timeEntries.forEach(entry => {
-        const projectId = entry.project.id;
-        const project = projects.find(p => p.id === projectId);
-        
-        if (!project) return;
-        
-        // Only include the specific projects requested
+      // Add all target projects that exist, even with 0 hours
+      projects.forEach(project => {
         const isTargetProject = targetProjects.some(target => 
-          project.name.toLowerCase().includes(target.toLowerCase())
+          target.keywords.some(keyword => 
+            project.name.toLowerCase().includes(keyword.toLowerCase())
+          )
         );
         
-        if (!isTargetProject) return;
-
-        if (!projectMap.has(projectId)) {
-          projectMap.set(projectId, {
-            id: projectId,
+        if (isTargetProject) {
+          projectMap.set(project.id, {
+            id: project.id,
             name: project.name,
             totalHours: 0,
             budget: project.budget || 0,
@@ -275,14 +290,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             budgetRemaining: project.budget_remaining || 0
           });
         }
+      });
 
-        const projectData = projectMap.get(projectId);
-        projectData.totalHours += entry.hours;
-        totalHours += entry.hours;
+      // Now add time entry hours to projects that have them
+      timeEntries.forEach(entry => {
+        const projectId = entry.project.id;
+        if (projectMap.has(projectId)) {
+          const projectData = projectMap.get(projectId);
+          projectData.totalHours += entry.hours;
+          totalHours += entry.hours;
+        }
       });
 
       const projectData = Array.from(projectMap.values())
-        .filter(project => project.totalHours > 0)
         .sort((a, b) => b.totalHours - a.totalHours)
         .map(project => ({
           ...project,
