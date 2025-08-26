@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { HarvestService } from './harvest';
 import { sendEmail, generateProjectReportHTML } from './email';
+import { saveReportAsFile, createEmailInstructions } from './email-fallback';
 import { storage } from '../storage';
 
 interface ProjectReportData {
@@ -103,16 +104,25 @@ export class ReportScheduler {
       const projectData = await this.generateProjectReport();
       const htmlContent = generateProjectReportHTML(projectData);
 
-      const success = await sendEmail({
+      const emailSuccess = await sendEmail({
         to: 'david@webapper.com',
         subject: `Weekly Project Budget Report - ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
         html: htmlContent
       });
 
-      if (success) {
+      if (emailSuccess) {
         console.log('Weekly report sent successfully to david@webapper.com');
       } else {
-        console.error('Failed to send weekly report');
+        console.log('Email delivery failed, creating backup file...');
+        
+        // Fallback: Save as HTML file
+        const fileSuccess = await saveReportAsFile(htmlContent, 'david@webapper.com');
+        
+        if (fileSuccess) {
+          console.log(createEmailInstructions('david@webapper.com'));
+        } else {
+          console.error('Failed to send weekly report via email or save as file');
+        }
       }
     } catch (error) {
       console.error('Error generating/sending weekly report:', error);

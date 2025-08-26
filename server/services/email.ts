@@ -4,10 +4,15 @@ import nodemailer from 'nodemailer';
 // You can use any email provider's SMTP settings
 const createTransporter = () => {
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // Use STARTTLS
     auth: {
-      user: process.env.EMAIL_USER || 'your-email@gmail.com',
-      pass: process.env.EMAIL_PASSWORD || 'your-app-password'
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD
+    },
+    tls: {
+      rejectUnauthorized: false
     }
   });
 };
@@ -21,20 +26,44 @@ export interface EmailOptions {
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
+    // Check if email credentials are configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      console.error('Email credentials not configured. Please set EMAIL_USER and EMAIL_PASSWORD in settings.');
+      return false;
+    }
+
+    console.log(`Attempting to send email from ${process.env.EMAIL_USER} to ${options.to}`);
+    
     const transporter = createTransporter();
     
+    // Verify the transporter configuration
+    await transporter.verify();
+    console.log('SMTP connection verified successfully');
+    
     const mailOptions = {
-      from: options.from || process.env.EMAIL_USER || 'noreply@harvest-assistant.com',
+      from: options.from || process.env.EMAIL_USER,
       to: options.to,
       subject: options.subject,
       html: options.html
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log(`Email sent successfully to ${options.to}`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Email sent successfully to ${options.to}, Message ID: ${info.messageId}`);
     return true;
   } catch (error) {
     console.error('Failed to send email:', error);
+    
+    // Provide specific guidance based on error type
+    if (error.code === 'EAUTH') {
+      console.error(`
+Gmail Authentication Failed. Please ensure:
+1. 2-Step Verification is enabled on your Gmail account
+2. You're using an App Password (not your regular Gmail password)
+3. Generate App Password at: https://myaccount.google.com/apppasswords
+4. Use the 16-character app password in the settings
+      `);
+    }
+    
     return false;
   }
 }
