@@ -419,7 +419,7 @@ export default function Chat() {
 
         <TabsContent value="chat" className="flex-1 flex flex-col mt-0">
           {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-96" data-testid="chat-messages">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[70vh]" data-testid="chat-messages">
         {/* Welcome Message */}
         {messages.length === 0 && (
           <MessageBubble
