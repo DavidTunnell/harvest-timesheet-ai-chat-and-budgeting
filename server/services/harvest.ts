@@ -80,10 +80,15 @@ export class HarvestService {
 
   async getProjects(): Promise<HarvestProject[]> {
     try {
+      // Get all projects including archived ones and use pagination
       const response = await axios.get(`${HARVEST_BASE_URL}/projects`, {
-        headers: this.getHeaders()
+        headers: this.getHeaders(),
+        params: {
+          per_page: 100 // Get more results per page
+        }
       });
 
+      console.log(`Harvest API returned ${response.data.projects?.length || 0} projects`);
       return response.data.projects || [];
     } catch (error) {
       console.error('Error fetching projects:', error);

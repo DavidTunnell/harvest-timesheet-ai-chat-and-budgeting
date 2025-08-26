@@ -243,7 +243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Filter for only the requested projects (broader matching)
       const targetProjects = [
-        { keywords: ["educational data services", "educational", "eds"], name: "Educational Data Services" },
+        { keywords: ["educational data services", "educational", "eds", "inc", "retained support services"], name: "Educational Data Services" },
         { keywords: ["cloudsee", "cloud see"], name: "CloudSee Drive" },
         { keywords: ["vision", "ast"], name: "Vision AST" }
       ];
@@ -275,10 +275,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Now add time entry hours to projects that have them
       timeEntries.forEach(entry => {
         const projectId = entry.project.id;
+        const projectName = entry.project.name;
+        
+        
         if (projectMap.has(projectId)) {
           const projectData = projectMap.get(projectId);
           projectData.totalHours += entry.hours;
           totalHours += entry.hours;
+        } else {
+          // If project not in map but is a target project, add it
+          const isTargetProject = targetProjects.some(target => 
+            target.keywords.some(keyword => 
+              projectName.toLowerCase().includes(keyword.toLowerCase())
+            )
+          );
+          
+          if (isTargetProject) {
+            projectMap.set(projectId, {
+              id: projectId,
+              name: projectName,
+              totalHours: entry.hours,
+              budget: 0,
+              budgetSpent: 0,
+              budgetRemaining: 0
+            });
+            totalHours += entry.hours;
+          }
         }
       });
 
