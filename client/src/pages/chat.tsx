@@ -569,11 +569,11 @@ export default function Chat() {
                           <td className="px-6 py-4 text-center">${project.billedAmount?.toFixed(2) || '0.00'}</td>
                           <td className="px-6 py-4 text-center">
                             <span className={
-                              project.budgetPercentComplete > 90 ? 'text-red-600 font-semibold' : 
-                              project.budgetPercentComplete > 75 ? 'text-yellow-600 font-semibold' : 
+                              (project.budgetPercentComplete || 0) > 90 ? 'text-red-600 font-semibold' : 
+                              (project.budgetPercentComplete || 0) > 75 ? 'text-yellow-600 font-semibold' : 
                               'text-green-600'
                             }>
-                              {project.budgetPercentComplete?.toFixed(1) || '0'}%
+                              {(project.budgetPercentComplete || 0).toFixed(1)}%
                             </span>
                           </td>
                           <td className="px-6 py-4 text-center">
