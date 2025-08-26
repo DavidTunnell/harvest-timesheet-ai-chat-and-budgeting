@@ -69,7 +69,10 @@ Examples:
       temperature: 0.1
     });
 
-    const result = JSON.parse((response.content[0] as any).text || "{}");
+    const responseText = (response.content[0] as any).text || "{}";
+    // Clean up the response by removing markdown code blocks if present
+    const cleanedText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const result = JSON.parse(cleanedText);
     
     // Validate and clean the response
     return {
