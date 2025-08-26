@@ -208,26 +208,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Debug endpoint to see all projects
-  app.get("/api/debug/projects", async (req, res) => {
-    try {
-      const harvestConfig = await storage.getHarvestConfig();
-      if (!harvestConfig) {
-        return res.status(400).json({ error: "Harvest API not configured" });
-      }
-
-      const harvestService = new HarvestService({
-        accountId: harvestConfig.accountId,
-        accessToken: harvestConfig.accessToken
-      });
-
-      const projects = await harvestService.getProjects();
-      res.json({ projects: projects.map(p => ({ id: p.id, name: p.name })) });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch projects" });
-    }
-  });
-
   // Get weekly report data
   app.get("/api/reports/data", async (req, res) => {
     try {
@@ -263,7 +243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Filter for only the requested projects (broader matching)
       const targetProjects = [
-        { keywords: ["educational", "eds", "data systems"], name: "Educational Data Systems" },
+        { keywords: ["educational data services", "educational", "eds"], name: "Educational Data Services" },
         { keywords: ["cloudsee", "cloud see"], name: "CloudSee Drive" },
         { keywords: ["vision", "ast"], name: "Vision AST" }
       ];

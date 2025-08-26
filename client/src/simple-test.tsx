@@ -18,14 +18,15 @@ export default function SimpleTest() {
       </div>
 
       <div style={{ marginTop: '15px', padding: '15px', backgroundColor: '#fff3cd', border: '1px solid #ffc107', borderRadius: '5px' }}>
-        <h3>🔍 EDS Missing Issue</h3>
-        <p>The Educational Data Systems project isn't appearing. This could be because:</p>
+        <h3>🔍 Educational Data Services, Inc. Status</h3>
+        <p>Confirmed project name: "Educational Data Services, Inc." but it's not appearing in reports.</p>
+        <p><strong>Possible reasons:</strong></p>
         <ul style={{ marginLeft: '20px' }}>
-          <li>Project name might be different (e.g., "EDS", "Educational Systems", etc.)</li>
           <li>No time entries logged for this project in August 2025</li>
-          <li>Project might be inactive in Harvest</li>
+          <li>Project might be inactive or archived in Harvest</li>
+          <li>Exact name might have different punctuation/spacing</li>
         </ul>
-        <p>📝 <strong>Next step:</strong> Check your Harvest account to see the exact project name for Educational Data Systems</p>
+        <p>✅ <strong>System ready:</strong> As soon as time is logged to EDS, it will appear in reports</p>
       </div>
 
       <button 
