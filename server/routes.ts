@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { parseNaturalLanguageQuery, generateResponse } from "./services/openai";
 import { HarvestService } from "./services/harvest";
+import { reportScheduler } from "./services/scheduler";
 import { insertChatMessageSchema, insertHarvestConfigSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -153,6 +154,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Chat history error:", error);
       res.status(500).json({ error: "Failed to fetch chat history" });
+    }
+  });
+
+  // Manual trigger for weekly report (for testing)
+  app.post("/api/reports/trigger", async (req, res) => {
+    try {
+      await reportScheduler.triggerManualReport();
+      res.json({ success: true, message: "Weekly report triggered successfully" });
+    } catch (error) {
+      console.error("Manual report trigger error:", error);
+      res.status(500).json({ error: "Failed to trigger weekly report" });
     }
   });
 
