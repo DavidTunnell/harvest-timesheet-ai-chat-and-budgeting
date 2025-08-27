@@ -52,6 +52,7 @@ export class ReportScheduler {
       throw new Error('Harvest service not initialized');
     }
 
+    // Use the exact same logic as the API endpoint
     const dateRange = this.getMonthDateRange();
     
     // Get time entries for this month
@@ -63,7 +64,7 @@ export class ReportScheduler {
     // Get all projects to get budget information
     const projects = await this.harvestService.getProjects();
 
-    // Filter for only the requested projects (same as Weekly Report page)
+    // Filter for only the requested projects (broader matching)
     const targetProjects = [
       { keywords: ["educational data services", "educational", "eds", "inc", "retained support services"], name: "EDS Retained Support Services" },
       { keywords: ["cloudsee", "cloud see"], name: "CloudSee Drive" },
@@ -71,10 +72,11 @@ export class ReportScheduler {
       { keywords: ["basic hosting support", "bhs", "hosting support"], name: "Basic Hosting Support (BHS)" }
     ];
 
-    // Group time entries by project and calculate totals
-    const projectMap = new Map<number, ProjectReportData>();
+    // First, find all target projects (even if they have no time entries this month)
+    const projectMap = new Map();
+    let totalHours = 0;
 
-    // First, add all target projects that exist, even with 0 hours
+    // Add all target projects that exist, even with 0 hours
     projects.forEach(project => {
       const isTargetProject = targetProjects.some(target => 
         target.keywords.some(keyword => 
@@ -83,15 +85,31 @@ export class ReportScheduler {
       );
       
       if (isTargetProject) {
-        // Use actual budget from Harvest API
+        // Use actual budget from Harvest API, with known budgets as fallback
         let projectBudget = project.budget || 0;
         
+        // Set known budgets if Harvest API doesn't have them
+        if (projectBudget === 0) {
+          if (project.name.toLowerCase().includes('retained support services') || 
+              project.name.toLowerCase().includes('educational data services')) {
+            projectBudget = 15500; // $15,500 for EDS
+          } else if (project.name.toLowerCase().includes('vision ast')) {
+            projectBudget = 14700; // $14,700 for Vision AST
+          }
+        }
+        
         projectMap.set(project.id, {
+          id: project.id,
           name: project.name,
           totalHours: 0,
           budget: projectBudget,
-          avgHourlyRate: 75, // Default hourly rate
-          billedAmount: 0
+          budgetSpent: 0,
+          budgetRemaining: projectBudget,
+          billedAmount: 0,
+          billableHours: 0,
+          budgetUsed: 0,
+          budgetPercentComplete: 0,
+          client: project.client
         });
       }
     });
@@ -101,35 +119,53 @@ export class ReportScheduler {
       const projectId = entry.project.id;
       
       if (projectMap.has(projectId)) {
-        const projectData = projectMap.get(projectId)!;
+        const projectData = projectMap.get(projectId);
         projectData.totalHours += entry.hours;
+        totalHours += entry.hours;
+        
         // Calculate billed amount using billable rate
         if (entry.billable) {
-          projectData.billedAmount += (entry.billable_rate || 75) * entry.hours;
+          const rate = entry.hourly_rate || 75; // Use hourly_rate instead of billable_rate
+          const billedAmount = rate * entry.hours;
+          projectData.billedAmount += billedAmount;
+          projectData.budgetSpent += billedAmount;
+          projectData.billableHours += entry.hours;
+        }
+        
+        // Update budget calculations
+        projectData.budgetRemaining = Math.max(0, projectData.budget - projectData.budgetSpent);
+        if (projectData.budget > 0) {
+          projectData.budgetUsed = Math.round((projectData.budgetSpent / projectData.budget * 100) * 100) / 100;
+          projectData.budgetPercentComplete = Math.round((projectData.billedAmount / projectData.budget * 100) * 100) / 100;
         }
       }
     });
 
-    const allProjects = Array.from(projectMap.values())
-      .filter(project => project.totalHours > 0); // Only show projects with hours
-    
-    // Separate BHS projects from regular projects
-    const bhsProjects = allProjects.filter(project => 
-      project.name.toLowerCase().includes('basic hosting support') || 
-      project.name.toLowerCase().includes('bhs')
-    );
-    
-    const regularProjects = allProjects.filter(project => 
-      !project.name.toLowerCase().includes('basic hosting support') && 
-      !project.name.toLowerCase().includes('bhs')
-    );
-    
-    // Use the same logic as the report endpoint to create BHS client structure
+    // Convert to array and include projects even with 0 hours to match the API endpoint exactly
+    const allProjects = Array.from(projectMap.values()).map(project => ({
+      ...project,
+      budgetUsed: project.budget > 0 
+        ? Math.round((project.budgetSpent / project.budget * 100) * 100) / 100
+        : 0,
+      budgetPercentComplete: project.budget > 0 
+        ? Math.round((project.billedAmount / project.budget * 100) * 100) / 100
+        : 0,
+      billedAmount: Math.round(project.billedAmount * 100) / 100,
+      billableHours: Math.round(project.billableHours * 100) / 100
+    }));
+  
+    // Get clients data to organize BHS projects properly
     const clients = await this.harvestService.getClients();
     const clientMap = new Map();
     clients.forEach(client => {
       clientMap.set(client.id, client);
     });
+
+    // Separate BHS projects from regular projects and group by client
+    const bhsProjectsRaw = allProjects.filter(project => 
+      project.name.toLowerCase().includes('basic hosting support') || 
+      project.name.toLowerCase().includes('bhs')
+    );
 
     // Group BHS projects by client to create the 4 specific rows
     const bhsClientMap = new Map();
@@ -140,7 +176,7 @@ export class ReportScheduler {
       { keywords: ['vision'], displayName: 'Vision AST' }
     ];
 
-    // Initialize BHS client entries
+    // Initialize BHS client entries with exact same structure as API endpoint
     targetBhsClients.forEach(client => {
       bhsClientMap.set(client.displayName, {
         id: `bhs-${client.displayName.toLowerCase().replace(/[^a-z]/g, '')}`,
@@ -160,11 +196,11 @@ export class ReportScheduler {
     });
 
     // Process raw BHS projects and find matching clients
-    bhsProjects.forEach(project => {
-      // Find the project in the full projects list to get client info
-      const fullProject = projects.find(p => p.name === project.name);
-      if (fullProject?.client) {
-        const clientName = fullProject.client.name.toLowerCase();
+    bhsProjectsRaw.forEach(project => {
+      // Find the client for this project
+      const projectClient = projects.find(p => p.id === project.id)?.client;
+      if (projectClient) {
+        const clientName = projectClient.name.toLowerCase();
         
         // Match to target clients
         const matchedClient = targetBhsClients.find(target =>
@@ -174,21 +210,53 @@ export class ReportScheduler {
         if (matchedClient) {
           const clientEntry = bhsClientMap.get(matchedClient.displayName);
           clientEntry.totalHours += project.totalHours;
+          clientEntry.budget += project.budget;
+          clientEntry.budgetSpent += project.budgetSpent;
+          clientEntry.budgetRemaining += project.budgetRemaining;
           clientEntry.billedAmount += project.billedAmount;
-          clientEntry.billableHours = clientEntry.budget; // Support hours = budget hours
+          clientEntry.billableHours += project.billableHours;
+          
+          // Update budget percentage
+          if (clientEntry.budget > 0) {
+            clientEntry.budgetPercentComplete = Math.round((clientEntry.billedAmount / clientEntry.budget * 100) * 100) / 100;
+          }
         }
       }
     });
 
-    const processedBhsProjects = Array.from(bhsClientMap.values());
+    // Ensure Atlantic British Ltd appears even if no matching project found
+    if (!bhsClientMap.has('Atlantic British Ltd.')) {
+      bhsClientMap.set('Atlantic British Ltd.', {
+        id: 'bhs-atlanticbritishltd',
+        name: 'Atlantic British Ltd. - Basic Hosting Support',
+        totalHours: 0,
+        budget: 8, // Default budget hours
+        budgetSpent: 0,
+        budgetRemaining: 0,
+        billedAmount: 0,
+        billableHours: 0,
+        budgetUsed: 0,
+        budgetPercentComplete: 0
+      });
+    }
+
+    const bhsProjects = Array.from(bhsClientMap.values()); // Show all target BHS clients, even with 0 hours
+    
+    const regularProjects = allProjects.filter(project => 
+      !project.name.toLowerCase().includes('basic hosting support') && 
+      !project.name.toLowerCase().includes('bhs')
+    );
+    
+    const projectData = regularProjects.sort((a, b) => b.totalHours - a.totalHours);
+
     const currentDate = new Date().toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'long' 
     });
 
     return {
-      regularProjects: regularProjects.sort((a, b) => b.totalHours - a.totalHours),
-      bhsProjects: processedBhsProjects.sort((a, b) => b.totalHours - a.totalHours),
+      regularProjects: projectData,
+      bhsProjects: bhsProjects.sort((a, b) => b.totalHours - a.totalHours),
       reportDate: currentDate
     };
   }
