@@ -224,9 +224,10 @@ export default function Chat() {
       return response.json();
     },
     onSuccess: () => {
+      const recipients = currentConfig?.reportRecipients || "configured recipients";
       toast({
         title: "Success",
-        description: "Test report sent successfully to david@webapper.com"
+        description: `Test report sent successfully to ${recipients}`
       });
     },
     onError: (error: any) => {
