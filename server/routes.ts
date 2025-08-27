@@ -258,91 +258,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
         { keywords: ["basic hosting support", "bhs", "hosting support"], name: "Basic Hosting Support (BHS)" }
       ];
 
-      // Group projects by target display name to avoid duplicates
-      const projectGroupMap = new Map();
+      // First, find all target projects (even if they have no time entries this month)
+      const projectMap = new Map();
       let totalHours = 0;
 
-      // Initialize target project groups
-      targetProjects.forEach(target => {
-        if (target.name !== "Basic Hosting Support (BHS)") { // Skip BHS as it's handled separately
-          projectGroupMap.set(target.name, {
-            id: target.name.toLowerCase().replace(/[^a-z]/g, ''),
-            name: target.name,
-            totalHours: 0,
-            budget: 0,
-            budgetSpent: 0,
-            budgetRemaining: 0,
-            billedAmount: 0,
-            billableHours: 0,
-            matchingProjectIds: []
-          });
-        }
-      });
-
-      // Find all matching projects and consolidate their data
+      // Add all target projects that exist, even with 0 hours
       projects.forEach(project => {
-        const matchingTarget = targetProjects.find(target => 
+        const isTargetProject = targetProjects.some(target => 
           target.keywords.some(keyword => 
             project.name.toLowerCase().includes(keyword.toLowerCase())
           )
         );
         
-        if (matchingTarget && matchingTarget.name !== "Basic Hosting Support (BHS)") {
-          const groupData = projectGroupMap.get(matchingTarget.name);
-          
+        if (isTargetProject) {
           // Use actual budget from Harvest API, with known budgets as fallback
           let projectBudget = project.budget || 0;
           
           // Set known budgets if Harvest API doesn't have them
           if (projectBudget === 0) {
-            if (matchingTarget.name === "EDS Retained Support Services") {
+            if (project.name.toLowerCase().includes('retained support services') || 
+                project.name.toLowerCase().includes('educational data services')) {
               projectBudget = 15500; // $15,500 for EDS
-            } else if (matchingTarget.name === "Vision AST") {
+            } else if (project.name.toLowerCase().includes('vision ast')) {
               projectBudget = 14700; // $14,700 for Vision AST
             }
           }
           
-          // Aggregate budget data (use the highest budget found)
-          if (projectBudget > groupData.budget) {
-            groupData.budget = projectBudget;
-          }
-          groupData.budgetSpent += project.budget_spent || 0;
-          groupData.budgetRemaining += project.budget_remaining || 0;
-          groupData.matchingProjectIds.push(project.id);
+          projectMap.set(project.id, {
+            id: project.id,
+            name: project.name,
+            totalHours: 0,
+            budget: projectBudget,
+            budgetSpent: project.budget_spent || 0,
+            budgetRemaining: project.budget_remaining || 0,
+            billedAmount: 0,
+            billableHours: 0
+          });
         }
       });
 
-      // Now add time entry hours to the grouped projects
+      // Now add time entry hours to projects that have them
       timeEntries.forEach(entry => {
         const projectId = entry.project.id;
         const projectName = entry.project.name;
         
-        // Find which target group this project belongs to
-        const matchingTarget = targetProjects.find(target => 
-          target.keywords.some(keyword => 
-            projectName.toLowerCase().includes(keyword.toLowerCase())
-          )
-        );
         
-        if (matchingTarget && matchingTarget.name !== "Basic Hosting Support (BHS)") {
-          const groupData = projectGroupMap.get(matchingTarget.name);
+        if (projectMap.has(projectId)) {
+          const projectData = projectMap.get(projectId);
+          projectData.totalHours += entry.hours;
+          totalHours += entry.hours;
           
-          // Only add hours if this project ID is in our matching list (to avoid double counting)
-          if (groupData.matchingProjectIds.includes(projectId)) {
-            groupData.totalHours += entry.hours;
-            totalHours += entry.hours;
-            
-            // Track billable hours
-            if (entry.billable) {
-              groupData.billableHours += entry.hours;
+          // Track billable hours and billing amounts
+          if (entry.billable) {
+            projectData.billableHours += entry.hours;
+            projectData.billedAmount += (entry.billable_rate || 0) * entry.hours;
+          }
+        } else {
+          // If project not in map but is a target project, add it
+          const isTargetProject = targetProjects.some(target => 
+            target.keywords.some(keyword => 
+              projectName.toLowerCase().includes(keyword.toLowerCase())
+            )
+          );
+          
+          if (isTargetProject) {
+            // Set known budgets for new projects found in time entries
+            let projectBudget = 0;
+            if (projectName.toLowerCase().includes('retained support services') || 
+                projectName.toLowerCase().includes('educational data services')) {
+              projectBudget = 15500; // $15,500 for EDS
+            } else if (projectName.toLowerCase().includes('vision ast')) {
+              projectBudget = 14700; // $14,700 for Vision AST
             }
+            
+            projectMap.set(projectId, {
+              id: projectId,
+              name: projectName,
+              totalHours: entry.hours,
+              budget: projectBudget,
+              budgetSpent: 0,
+              budgetRemaining: 0,
+              billedAmount: entry.billable ? (entry.billable_rate || 0) * entry.hours : 0,
+              billableHours: entry.billable ? entry.hours : 0
+            });
+            totalHours += entry.hours;
           }
         }
       });
 
-      const allProjects = Array.from(projectGroupMap.values())
+      const allProjects = Array.from(projectMap.values())
         .map(project => ({
           ...project,
+          // Update project name for display
+          name: project.name.includes('Retained Support Services') ? 'EDS Retained Support Services' : project.name,
           budgetUsed: project.budget > 0 
             ? Math.round((project.budgetSpent / project.budget * 100) * 100) / 100
             : 0,
