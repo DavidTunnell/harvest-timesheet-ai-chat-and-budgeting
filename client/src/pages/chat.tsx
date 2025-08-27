@@ -449,7 +449,7 @@ export default function Chat() {
           </TabsTrigger>
           <TabsTrigger value="report" className="flex items-center space-x-2">
             <Mail className="h-4 w-4" />
-            <span>Weekly Report</span>
+            <span>Monthly Report</span>
           </TabsTrigger>
         </TabsList>
 
