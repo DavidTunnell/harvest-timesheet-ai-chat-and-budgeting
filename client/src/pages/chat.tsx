@@ -566,7 +566,7 @@ export default function Chat() {
             <div className="w-full p-8">
               {/* Weekly Report Content */}
               <div className="bg-gradient-to-r from-orange-600 to-orange-500 text-white p-8 rounded-lg mb-8 text-center">
-                <h1 className="text-3xl font-bold mb-2">Weekly Project Budget Report</h1>
+                <h1 className="text-3xl font-bold mb-2">Monthly Project Budget Report</h1>
                 <p className="text-orange-100">
                   {reportData?.summary?.reportDate || new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
