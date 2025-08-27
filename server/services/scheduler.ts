@@ -79,7 +79,7 @@ export class ReportScheduler {
             </div>
             
             <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 30px; text-align: center;">
-              <h2 style="color: #374151; margin-bottom: 15px;">Your monthly project budget report is ready!</h2>
+              <h2 style="color: #374151; margin-bottom: 15px;">Your ${new Date().toLocaleDateString('en-US', { month: 'long' })} project budget report is ready!</h2>
               <p style="color: #6b7280; margin-bottom: 25px;">Click the button below to view your detailed project budget report with current data from Harvest.</p>
               
               <a href="${reportUrl}" style="display: inline-block; background: #ea580c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; margin-bottom: 20px;">
