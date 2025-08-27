@@ -81,7 +81,7 @@ Gmail Authentication Failed. Please ensure:
   }
 }
 
-export function generateProjectReportHTML(projectData: any[]): string {
+export function generateProjectReportHTML(regularProjects: any[], bhsProjects: any[] = []): string {
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
     year: 'numeric', 
@@ -89,21 +89,18 @@ export function generateProjectReportHTML(projectData: any[]): string {
     day: 'numeric' 
   });
 
-  let tableRows = '';
-  let totalHours = 0;
-  let totalBudgetUsed = 0;
+  // Generate regular projects table
+  let regularTableRows = '';
+  let totalRegularHours = 0;
 
-  projectData.forEach(project => {
+  regularProjects.forEach(project => {
     const budgetPercentage = project.budget > 0 
       ? ((project.billedAmount || 0) / project.budget * 100).toFixed(1)
       : 'N/A';
     
-    totalHours += project.totalHours;
-    if (project.budget > 0) {
-      totalBudgetUsed += (project.billedAmount || 0) / project.budget * 100;
-    }
+    totalRegularHours += project.totalHours;
 
-    tableRows += `
+    regularTableRows += `
       <tr>
         <td style="padding: 12px; border-bottom: 1px solid #eee;">${project.name}</td>
         <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.totalHours.toFixed(1)}h</td>
@@ -114,6 +111,48 @@ export function generateProjectReportHTML(projectData: any[]): string {
       </tr>
     `;
   });
+
+  // Generate BHS projects table
+  let bhsTableRows = '';
+  let totalBhsHours = 0;
+
+  bhsProjects.forEach(project => {
+    const budgetPercentage = project.budget > 0 
+      ? ((project.billedAmount || 0) / project.budget * 100).toFixed(1)
+      : 'N/A';
+    
+    totalBhsHours += project.totalHours;
+
+    bhsTableRows += `
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid #eee;">${project.name}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.totalHours.toFixed(1)}h</td>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; color: ${parseFloat(budgetPercentage) > 90 ? '#e74c3c' : parseFloat(budgetPercentage) > 75 ? '#f39c12' : '#27ae60'};">
+          ${budgetPercentage}%
+        </td>
+      </tr>
+    `;
+  });
+
+  const bhsSection = bhsProjects.length > 0 ? `
+    <div style="margin-top: 40px;">
+      <h2 style="color: #2c3e50; margin-bottom: 20px;">Basic Hosting Support (BHS) Projects</h2>
+      <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <thead>
+          <tr style="background: #34495e; color: white;">
+            <th style="padding: 15px; text-align: left;">Project Name</th>
+            <th style="padding: 15px; text-align: center;">Hours Logged</th>
+            <th style="padding: 15px; text-align: center;">Total Budget</th>
+            <th style="padding: 15px; text-align: center;">Budget %</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${bhsTableRows}
+        </tbody>
+      </table>
+    </div>
+  ` : '';
 
   return `
     <!DOCTYPE html>
@@ -133,6 +172,7 @@ export function generateProjectReportHTML(projectData: any[]): string {
         <p>This report shows the total hours and budget utilization for each project so far this month.</p>
       </div>
 
+      <h2 style="color: #2c3e50; margin-bottom: 20px;">Primary Projects</h2>
       <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
         <thead>
           <tr style="background: #34495e; color: white;">
@@ -143,14 +183,18 @@ export function generateProjectReportHTML(projectData: any[]): string {
           </tr>
         </thead>
         <tbody>
-          ${tableRows}
+          ${regularTableRows}
         </tbody>
       </table>
 
+      ${bhsSection}
+
       <div style="margin-top: 30px; padding: 20px; background: #ecf0f1; border-radius: 8px;">
         <h3 style="color: #2c3e50; margin-top: 0;">Summary</h3>
-        <p><strong>Total Hours This Month:</strong> ${totalHours.toFixed(1)} hours</p>
-        <p><strong>Projects Tracked:</strong> ${projectData.length}</p>
+        <p><strong>Total Regular Project Hours:</strong> ${totalRegularHours.toFixed(1)} hours</p>
+        ${bhsProjects.length > 0 ? `<p><strong>Total BHS Hours:</strong> ${totalBhsHours.toFixed(1)} hours</p>` : ''}
+        <p><strong>Total Hours This Month:</strong> ${(totalRegularHours + totalBhsHours).toFixed(1)} hours</p>
+        <p><strong>Projects Tracked:</strong> ${regularProjects.length + bhsProjects.length}</p>
         <p style="font-size: 12px; color: #7f8c8d; margin-top: 20px;">
           This report is automatically generated by your Harvest Assistant every Monday at 8:00 AM CST.
         </p>

@@ -119,9 +119,24 @@ export class ReportScheduler {
       }
     });
 
-    return Array.from(projectMap.values())
-      .filter(project => project.totalHours > 0) // Only show projects with hours
-      .sort((a, b) => b.totalHours - a.totalHours);
+    const allProjects = Array.from(projectMap.values())
+      .filter(project => project.totalHours > 0); // Only show projects with hours
+    
+    // Separate BHS projects from regular projects
+    const bhsProjects = allProjects.filter(project => 
+      project.name.toLowerCase().includes('basic hosting support') || 
+      project.name.toLowerCase().includes('bhs')
+    );
+    
+    const regularProjects = allProjects.filter(project => 
+      !project.name.toLowerCase().includes('basic hosting support') && 
+      !project.name.toLowerCase().includes('bhs')
+    );
+    
+    return {
+      regularProjects: regularProjects.sort((a, b) => b.totalHours - a.totalHours),
+      bhsProjects: bhsProjects.sort((a, b) => b.totalHours - a.totalHours)
+    };
   }
 
   private async sendWeeklyReport() {
@@ -143,7 +158,7 @@ export class ReportScheduler {
       }
 
       const projectData = await this.generateProjectReport();
-      const htmlContent = generateProjectReportHTML(projectData);
+      const htmlContent = generateProjectReportHTML(projectData.regularProjects, projectData.bhsProjects);
 
       // Split recipients by comma and send to each
       const recipients = emailConfig.reportRecipients.split(',').map(email => email.trim());

@@ -338,8 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      const projectData = Array.from(projectMap.values())
-        .sort((a, b) => b.totalHours - a.totalHours)
+      const allProjects = Array.from(projectMap.values())
         .map(project => ({
           ...project,
           budgetUsed: project.budget > 0 
@@ -351,9 +350,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           billedAmount: Math.round(project.billedAmount * 100) / 100,
           billableHours: Math.round(project.billableHours * 100) / 100
         }));
+      
+      // Separate BHS projects from regular projects for the report
+      const bhsProjects = allProjects.filter(project => 
+        project.name.toLowerCase().includes('basic hosting support') || 
+        project.name.toLowerCase().includes('bhs')
+      );
+      
+      const regularProjects = allProjects.filter(project => 
+        !project.name.toLowerCase().includes('basic hosting support') && 
+        !project.name.toLowerCase().includes('bhs')
+      );
+      
+      const projectData = regularProjects.sort((a, b) => b.totalHours - a.totalHours);
 
       res.json({
         projects: projectData,
+        bhsProjects: bhsProjects.sort((a, b) => b.totalHours - a.totalHours),
         summary: {
           totalHours: totalHours,
           projectCount: projectData.length,
