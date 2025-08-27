@@ -250,15 +250,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all projects to get budget information
       const projects = await harvestService.getProjects();
 
-      // Filter for only the requested projects with more specific matching
+      // Filter for only the requested projects with very specific matching
       const targetProjects = [
         { 
           keywords: ["retained support services"], 
           name: "EDS Retained Support Services",
-          exactMatch: true // Only match if it contains "retained support services"
+          // Must contain "retained support services" and be from Educational Data Services
+          strictMatch: (projectName) => {
+            const name = projectName.toLowerCase();
+            return name.includes('retained support services') && 
+                   (name.includes('educational data services') || name.includes('eds'));
+          }
         },
         { keywords: ["cloudsee", "cloud see"], name: "CloudSee Drive" },
-        { keywords: ["vision ast", "vision", "ast"], name: "Vision AST" },
+        { keywords: ["vision ast"], name: "Vision AST" },
         { keywords: ["basic hosting support", "bhs"], name: "Basic Hosting Support (BHS)" }
       ];
 
@@ -276,11 +281,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         
-        const matchingTarget = targetProjects.find(target => 
-          target.keywords.some(keyword => 
+        const matchingTarget = targetProjects.find(target => {
+          if (target.strictMatch) {
+            return target.strictMatch(project.name);
+          }
+          return target.keywords.some(keyword => 
             project.name.toLowerCase().includes(keyword.toLowerCase())
-          )
-        );
+          );
+        });
         
         if (matchingTarget) {
           addedProjects.add(project.id);
@@ -329,11 +337,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           // If project not in map but is a target project, add it (with duplicate check)
           if (!addedProjects.has(projectId)) {
-            const matchingTarget = targetProjects.find(target => 
-              target.keywords.some(keyword => 
+            const matchingTarget = targetProjects.find(target => {
+              if (target.strictMatch) {
+                return target.strictMatch(projectName);
+              }
+              return target.keywords.some(keyword => 
                 projectName.toLowerCase().includes(keyword.toLowerCase())
-              )
-            );
+              );
+            });
             
             if (matchingTarget) {
               addedProjects.add(projectId);
@@ -363,61 +374,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      // Consolidate projects with the same target name
-      const consolidatedProjects = new Map();
-      
-      Array.from(projectMap.values()).forEach(project => {
-        // Determine the display name for this project
-        let displayName = project.name;
-        if (project.name.toLowerCase().includes('retained support services')) {
-          displayName = 'EDS Retained Support Services';
-        } else if (project.name.toLowerCase().includes('vision') && project.name.toLowerCase().includes('ast')) {
-          displayName = 'Vision AST';
-        } else if (project.name.toLowerCase().includes('cloudsee') || project.name.toLowerCase().includes('cloud see')) {
-          displayName = 'CloudSee Drive';
-        }
-        
-        if (consolidatedProjects.has(displayName)) {
-          // Merge with existing project
-          const existing = consolidatedProjects.get(displayName);
-          existing.totalHours += project.totalHours;
-          existing.budgetSpent += project.budgetSpent;
-          existing.budgetRemaining += project.budgetRemaining;
-          existing.billedAmount += project.billedAmount;
-          existing.billableHours += project.billableHours;
-          // Keep the higher budget value
-          if (project.budget > existing.budget) {
-            existing.budget = project.budget;
-          }
-        } else {
-          // Add new consolidated project
-          consolidatedProjects.set(displayName, {
-            ...project,
-            name: displayName,
-            budgetUsed: project.budget > 0 
-              ? Math.round((project.budgetSpent / project.budget * 100) * 100) / 100
-              : 0,
-            budgetPercentComplete: project.budget > 0 
-              ? Math.round((project.billedAmount / project.budget * 100) * 100) / 100
-              : 0,
-            billedAmount: Math.round(project.billedAmount * 100) / 100,
-            billableHours: Math.round(project.billableHours * 100) / 100
-          });
-        }
-      });
-      
-      // Recalculate percentages for consolidated projects
-      const allProjects = Array.from(consolidatedProjects.values()).map(project => ({
-        ...project,
-        budgetUsed: project.budget > 0 
-          ? Math.round((project.budgetSpent / project.budget * 100) * 100) / 100
-          : 0,
-        budgetPercentComplete: project.budget > 0 
-          ? Math.round((project.billedAmount / project.budget * 100) * 100) / 100
-          : 0,
-        billedAmount: Math.round(project.billedAmount * 100) / 100,
-        billableHours: Math.round(project.billableHours * 100) / 100
-      }));
+      const allProjects = Array.from(projectMap.values())
+        .map(project => ({
+          ...project,
+          // Update project name for display
+          name: project.name.includes('Retained Support Services') ? 'EDS Retained Support Services' : project.name,
+          budgetUsed: project.budget > 0 
+            ? Math.round((project.budgetSpent / project.budget * 100) * 100) / 100
+            : 0,
+          budgetPercentComplete: project.budget > 0 
+            ? Math.round((project.billedAmount / project.budget * 100) * 100) / 100
+            : 0,
+          billedAmount: Math.round(project.billedAmount * 100) / 100,
+          billableHours: Math.round(project.billableHours * 100) / 100
+        }));
       
       // Get clients data to organize BHS projects properly
       const clients = await harvestService.getClients();
