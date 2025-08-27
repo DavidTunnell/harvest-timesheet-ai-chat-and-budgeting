@@ -37,7 +37,7 @@ export default function Chat() {
   const [emailPassword, setEmailPassword] = useState("");
   const [reportRecipients, setReportRecipients] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>("chat");
+  const [activeTab, setActiveTab] = useState<string>("report");
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -470,13 +470,13 @@ export default function Chat() {
       {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="chat" className="flex items-center space-x-2">
-            <MessageCircle className="h-4 w-4" />
-            <span>Chat</span>
-          </TabsTrigger>
           <TabsTrigger value="report" className="flex items-center space-x-2">
             <Mail className="h-4 w-4" />
             <span>Monthly Report</span>
+          </TabsTrigger>
+          <TabsTrigger value="chat" className="flex items-center space-x-2">
+            <MessageCircle className="h-4 w-4" />
+            <span>Chat</span>
           </TabsTrigger>
         </TabsList>
 
