@@ -250,27 +250,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all projects to get budget information
       const projects = await harvestService.getProjects();
 
-      // Filter for only the requested projects (broader matching)
+      // Filter for only the requested projects with more specific matching
       const targetProjects = [
-        { keywords: ["educational data services", "educational", "eds", "inc", "retained support services"], name: "EDS Retained Support Services" },
+        { 
+          keywords: ["retained support services"], 
+          name: "EDS Retained Support Services",
+          exactMatch: true // Only match if it contains "retained support services"
+        },
         { keywords: ["cloudsee", "cloud see"], name: "CloudSee Drive" },
-        { keywords: ["vision", "ast"], name: "Vision AST" },
-        { keywords: ["basic hosting support", "bhs", "hosting support"], name: "Basic Hosting Support (BHS)" }
+        { keywords: ["vision ast", "vision", "ast"], name: "Vision AST" },
+        { keywords: ["basic hosting support", "bhs"], name: "Basic Hosting Support (BHS)" }
       ];
 
       // First, find all target projects (even if they have no time entries this month)
       const projectMap = new Map();
       let totalHours = 0;
 
+      // Track which projects we've already added to avoid duplicates
+      const addedProjects = new Set();
+      
       // Add all target projects that exist, even with 0 hours
       projects.forEach(project => {
-        const isTargetProject = targetProjects.some(target => 
+        // Skip if we've already added this project
+        if (addedProjects.has(project.id)) {
+          return;
+        }
+        
+        const matchingTarget = targetProjects.find(target => 
           target.keywords.some(keyword => 
             project.name.toLowerCase().includes(keyword.toLowerCase())
           )
         );
         
-        if (isTargetProject) {
+        if (matchingTarget) {
+          addedProjects.add(project.id);
           // Use actual budget from Harvest API, with known budgets as fallback
           let projectBudget = project.budget || 0;
           
@@ -314,34 +327,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
             projectData.billedAmount += (entry.billable_rate || 0) * entry.hours;
           }
         } else {
-          // If project not in map but is a target project, add it
-          const isTargetProject = targetProjects.some(target => 
-            target.keywords.some(keyword => 
-              projectName.toLowerCase().includes(keyword.toLowerCase())
-            )
-          );
-          
-          if (isTargetProject) {
-            // Set known budgets for new projects found in time entries
-            let projectBudget = 0;
-            if (projectName.toLowerCase().includes('retained support services') || 
-                projectName.toLowerCase().includes('educational data services')) {
-              projectBudget = 15500; // $15,500 for EDS
-            } else if (projectName.toLowerCase().includes('vision ast')) {
-              projectBudget = 14700; // $14,700 for Vision AST
-            }
+          // If project not in map but is a target project, add it (with duplicate check)
+          if (!addedProjects.has(projectId)) {
+            const matchingTarget = targetProjects.find(target => 
+              target.keywords.some(keyword => 
+                projectName.toLowerCase().includes(keyword.toLowerCase())
+              )
+            );
             
-            projectMap.set(projectId, {
-              id: projectId,
-              name: projectName,
-              totalHours: entry.hours,
-              budget: projectBudget,
-              budgetSpent: 0,
-              budgetRemaining: 0,
-              billedAmount: entry.billable ? (entry.billable_rate || 0) * entry.hours : 0,
-              billableHours: entry.billable ? entry.hours : 0
-            });
-            totalHours += entry.hours;
+            if (matchingTarget) {
+              addedProjects.add(projectId);
+              
+              // Set known budgets for new projects found in time entries
+              let projectBudget = 0;
+              if (projectName.toLowerCase().includes('retained support services') || 
+                  projectName.toLowerCase().includes('educational data services')) {
+                projectBudget = 15500; // $15,500 for EDS
+              } else if (projectName.toLowerCase().includes('vision ast')) {
+                projectBudget = 14700; // $14,700 for Vision AST
+              }
+              
+              projectMap.set(projectId, {
+                id: projectId,
+                name: projectName,
+                totalHours: entry.hours,
+                budget: projectBudget,
+                budgetSpent: 0,
+                budgetRemaining: 0,
+                billedAmount: entry.billable ? (entry.billable_rate || 0) * entry.hours : 0,
+                billableHours: entry.billable ? entry.hours : 0
+              });
+              totalHours += entry.hours;
+            }
           }
         }
       });
