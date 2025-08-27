@@ -686,8 +686,8 @@ export default function Chat() {
                   } hours</p>
                   <p><strong>Total Billable Hours:</strong> {reportData?.projects?.reduce((sum, p) => sum + (p.billableHours || 0), 0).toFixed(1) || '0'} hours</p>
                   <p><strong>Total Amount Billed:</strong> ${
-                    ((reportData?.projects?.reduce((sum, p) => sum + (p.billedAmount || 0), 0) || 0) + 
-                     (reportData?.bhsProjects?.reduce((sum, p) => sum + (p.billedAmount || 0), 0) || 0)).toFixed(2)
+                    ((reportData?.projects?.reduce((sum, p) => sum + (p.budget || 0), 0) || 0) + 
+                     (reportData?.bhsProjects?.reduce((sum, p) => sum + ((p.budget || 0) * 150), 0) || 0)).toFixed(2)
                   }</p>
                   <p><strong>Projects Tracked:</strong> {((reportData?.projects?.length || 0) + (reportData?.bhsProjects?.length || 0))}</p>
                 </div>
