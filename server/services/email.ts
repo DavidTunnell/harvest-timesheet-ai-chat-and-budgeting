@@ -130,12 +130,12 @@ export function generateProjectReportHTML(regularProjects: any[], bhsProjects: a
     // Extract client name from project name (remove " - Basic Hosting Support" suffix)
     const clientName = project.name.replace(/ - Basic Hosting Support$/, '');
     
-    // For BHS, budget is hours-based at $150/hour
-    const supportHours = project.budget || 8; // Default to 8 support hours
+    // Use the actual support hours from the project data (budget field represents support hours)
+    const supportHours = project.budget;
     const budgetPercentage = supportHours > 0 
       ? ((project.totalHours / supportHours) * 100).toFixed(1)
       : '0.0';
-    const totalBudget = supportHours * 150;
+    const totalBudget = supportHours * 150; // $150 per support hour
     
     totalBhsHours += project.totalHours;
     totalBhsSupportHours += supportHours;

@@ -389,7 +389,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: `bhs-${client.displayName.toLowerCase().replace(/[^a-z]/g, '')}`,
           name: `${client.displayName} - Basic Hosting Support`,
           totalHours: 0,
-          budget: 0,
+          budget: client.displayName === 'Atlantic British Ltd.' ? 16 : 
+                  client.displayName === 'eRep, Inc.' ? 4 :
+                  client.displayName === 'Icon Media, Inc.' ? 16 :
+                  3, // Vision AST
           budgetSpent: 0,
           budgetRemaining: 0,
           billedAmount: 0,
@@ -434,7 +437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: 'bhs-atlanticbritishltd',
           name: 'Atlantic British Ltd. - Basic Hosting Support',
           totalHours: 0,
-          budget: 8, // Default budget hours
+          budget: 16, // Updated budget hours
           budgetSpent: 0,
           budgetRemaining: 0,
           billedAmount: 0,

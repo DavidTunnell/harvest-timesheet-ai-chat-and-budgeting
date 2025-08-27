@@ -182,10 +182,10 @@ export class ReportScheduler {
         id: `bhs-${client.displayName.toLowerCase().replace(/[^a-z]/g, '')}`,
         name: `${client.displayName} - Basic Hosting Support`,
         totalHours: 0,
-        budget: client.displayName === 'Atlantic British Ltd.' ? 8 : 
-                client.displayName === 'eRep, Inc.' ? 2 :
-                client.displayName === 'Icon Media, Inc.' ? 8 :
-                1.5, // Vision AST
+        budget: client.displayName === 'Atlantic British Ltd.' ? 16 : 
+                client.displayName === 'eRep, Inc.' ? 4 :
+                client.displayName === 'Icon Media, Inc.' ? 16 :
+                3, // Vision AST
         budgetSpent: 0,
         budgetRemaining: 0,
         billedAmount: 0,
@@ -230,7 +230,7 @@ export class ReportScheduler {
         id: 'bhs-atlanticbritishltd',
         name: 'Atlantic British Ltd. - Basic Hosting Support',
         totalHours: 0,
-        budget: 8, // Default budget hours
+        budget: 16, // Updated budget hours to match web interface
         budgetSpent: 0,
         budgetRemaining: 0,
         billedAmount: 0,
