@@ -47,7 +47,7 @@ export class ReportScheduler {
     };
   }
 
-  private async generateProjectReport(): Promise<ProjectReportData[]> {
+  private async generateProjectReport(): Promise<{ regularProjects: any[], bhsProjects: any[], reportDate: string }> {
     if (!this.harvestService) {
       throw new Error('Harvest service not initialized');
     }
@@ -124,15 +124,78 @@ export class ReportScheduler {
       !project.name.toLowerCase().includes('bhs')
     );
     
+    // Use the same logic as the report endpoint to create BHS client structure
+    const clients = await this.harvestService.getClients();
+    const clientMap = new Map();
+    clients.forEach(client => {
+      clientMap.set(client.id, client);
+    });
+
+    // Group BHS projects by client to create the 4 specific rows
+    const bhsClientMap = new Map();
+    const targetBhsClients = [
+      { keywords: ['atlantic', 'british'], displayName: 'Atlantic British Ltd.' },
+      { keywords: ['erep'], displayName: 'eRep, Inc.' },
+      { keywords: ['icon', 'media'], displayName: 'Icon Media, Inc.' },
+      { keywords: ['vision'], displayName: 'Vision AST' }
+    ];
+
+    // Initialize BHS client entries
+    targetBhsClients.forEach(client => {
+      bhsClientMap.set(client.displayName, {
+        id: `bhs-${client.displayName.toLowerCase().replace(/[^a-z]/g, '')}`,
+        name: `${client.displayName} - Basic Hosting Support`,
+        totalHours: 0,
+        budget: client.displayName === 'Atlantic British Ltd.' ? 8 : 
+                client.displayName === 'eRep, Inc.' ? 2 :
+                client.displayName === 'Icon Media, Inc.' ? 8 :
+                1.5, // Vision AST
+        budgetSpent: 0,
+        budgetRemaining: 0,
+        billedAmount: 0,
+        billableHours: 0,
+        budgetUsed: 0,
+        budgetPercentComplete: 0
+      });
+    });
+
+    // Process raw BHS projects and find matching clients
+    bhsProjects.forEach(project => {
+      // Find the project in the full projects list to get client info
+      const fullProject = projects.find(p => p.name === project.name);
+      if (fullProject?.client) {
+        const clientName = fullProject.client.name.toLowerCase();
+        
+        // Match to target clients
+        const matchedClient = targetBhsClients.find(target =>
+          target.keywords.some(keyword => clientName.includes(keyword))
+        );
+        
+        if (matchedClient) {
+          const clientEntry = bhsClientMap.get(matchedClient.displayName);
+          clientEntry.totalHours += project.totalHours;
+          clientEntry.billedAmount += project.billedAmount;
+          clientEntry.billableHours = clientEntry.budget; // Support hours = budget hours
+        }
+      }
+    });
+
+    const processedBhsProjects = Array.from(bhsClientMap.values());
+    const currentDate = new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long' 
+    });
+
     return {
       regularProjects: regularProjects.sort((a, b) => b.totalHours - a.totalHours),
-      bhsProjects: bhsProjects.sort((a, b) => b.totalHours - a.totalHours)
+      bhsProjects: processedBhsProjects.sort((a, b) => b.totalHours - a.totalHours),
+      reportDate: currentDate
     };
   }
 
   private async sendWeeklyReport() {
     try {
-      console.log('Generating weekly project budget report...');
+      console.log('Generating monthly project budget report...');
       
       if (!this.harvestService) {
         await this.initializeHarvestService();
@@ -144,12 +207,12 @@ export class ReportScheduler {
 
       const emailConfig = await storage.getEmailConfig();
       if (!emailConfig || !emailConfig.reportRecipients) {
-        console.log('No email configuration or recipients found - skipping weekly report');
+        console.log('No email configuration or recipients found - skipping monthly report');
         return;
       }
 
       const projectData = await this.generateProjectReport();
-      const htmlContent = generateProjectReportHTML(projectData.regularProjects, projectData.bhsProjects);
+      const htmlContent = generateProjectReportHTML(projectData.regularProjects, projectData.bhsProjects, projectData.reportDate);
 
       // Split recipients by comma and send to each
       const recipients = emailConfig.reportRecipients.split(',').map(email => email.trim());
@@ -159,12 +222,12 @@ export class ReportScheduler {
         if (recipient) {
           const emailSuccess = await sendEmail({
             to: recipient,
-            subject: `Weekly Project Budget Report - ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
+            subject: `Monthly Project Budget Report - ${projectData.reportDate}`,
             html: htmlContent
           });
 
           if (emailSuccess) {
-            console.log(`Weekly report sent successfully to ${recipient}`);
+            console.log(`Monthly report sent successfully to ${recipient}`);
             anySuccess = true;
           } else {
             console.log(`Email delivery failed for ${recipient}, creating backup file...`);
@@ -177,10 +240,10 @@ export class ReportScheduler {
       }
       
       if (!anySuccess && recipients.length > 0) {
-        console.error('Failed to send weekly report to any recipients');
+        console.error('Failed to send monthly report to any recipients');
       }
     } catch (error) {
-      console.error('Error generating/sending weekly report:', error);
+      console.error('Error generating/sending monthly report:', error);
     }
   }
 
@@ -190,14 +253,14 @@ export class ReportScheduler {
     const schedule = '0 0 14 * * 1'; // Every Monday at 14:00 UTC (8:00 AM CST)
     
     cron.schedule(schedule, () => {
-      console.log('Running scheduled weekly project report...');
+      console.log('Running scheduled monthly project report...');
       this.sendWeeklyReport();
     }, {
       scheduled: true,
       timezone: "America/Chicago" // CST timezone
     });
 
-    console.log('Weekly report scheduler started - reports will be sent every Monday at 8:00 AM CST');
+    console.log('Monthly report scheduler started - reports will be sent every Monday at 8:00 AM CST');
     
     // For testing: also allow manual trigger every minute (comment out in production)
     // cron.schedule('0 * * * * *', () => {
@@ -208,7 +271,7 @@ export class ReportScheduler {
 
   // Method to manually trigger a report (for testing)
   public async triggerManualReport() {
-    console.log('Manually triggering weekly report...');
+    console.log('Manually triggering monthly report...');
     await this.sendWeeklyReport();
   }
 }
