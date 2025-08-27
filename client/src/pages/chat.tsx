@@ -616,7 +616,7 @@ export default function Chat() {
                                 </span>
                               </td>
                               <td className="px-6 py-4 text-center">
-                                {project.budget > 0 ? `${project.budget}h` : 'No Budget Set'}
+                                {project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}
                               </td>
                             </tr>
                           ))}
