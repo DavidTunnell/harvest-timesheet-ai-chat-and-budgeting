@@ -636,6 +636,7 @@ export default function Chat() {
                               <th className="px-6 py-4 text-left">Client Name</th>
                               <th className="px-6 py-4 text-center">Hours Logged</th>
                               <th className="px-6 py-4 text-center">Support Hours</th>
+                              <th className="px-6 py-4 text-center">Total Budget</th>
                               <th className="px-6 py-4 text-center">Budget %</th>
                             </tr>
                           </thead>
@@ -643,11 +644,14 @@ export default function Chat() {
                             {reportData.bhsProjects.map((project, index) => {
                               // Calculate budget percentage for hours (hours logged / support hours budget)
                               const budgetPercent = project.budget > 0 ? (project.totalHours / project.budget) * 100 : 0;
+                              // Calculate total budget: $150 × Support Hours
+                              const totalBudget = project.budget > 0 ? project.budget * 150 : 0;
                               return (
                                 <tr key={project.id} className="border-b">
                                   <td className="px-6 py-4 font-medium">{project.name}</td>
                                   <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
                                   <td className="px-6 py-4 text-center">{project.budget > 0 ? `${project.budget}h` : 'No Budget Set'}</td>
+                                  <td className="px-6 py-4 text-center">${totalBudget.toLocaleString()}</td>
                                   <td className="px-6 py-4 text-center">
                                     <span className={
                                       budgetPercent > 100 ? 'text-red-600 font-semibold' : 
