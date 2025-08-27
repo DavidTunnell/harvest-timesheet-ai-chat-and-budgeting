@@ -245,9 +245,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Filter for only the requested projects (broader matching)
       const targetProjects = [
-        { keywords: ["educational data services", "educational", "eds", "inc", "retained support services"], name: "Educational Data Services" },
+        { keywords: ["educational data services", "educational", "eds", "inc", "retained support services"], name: "EDS Retained Support Services" },
         { keywords: ["cloudsee", "cloud see"], name: "CloudSee Drive" },
-        { keywords: ["vision", "ast"], name: "Vision AST" }
+        { keywords: ["vision", "ast"], name: "Vision AST" },
+        { keywords: ["basic hosting support", "bhs", "hosting support"], name: "Basic Hosting Support (BHS)" }
       ];
 
       // First, find all target projects (even if they have no time entries this month)
@@ -270,6 +271,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             projectBudget = 15500; // $15,500 for EDS
           } else if (project.name.toLowerCase().includes('vision ast')) {
             projectBudget = 14700; // $14,700 for Vision AST
+          } else if (project.name.toLowerCase().includes('basic hosting support') || 
+                     project.name.toLowerCase().includes('bhs')) {
+            projectBudget = 0; // No budget set for BHS - update as needed
           }
           
           projectMap.set(project.id, {
