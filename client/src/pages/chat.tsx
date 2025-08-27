@@ -5,11 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { MessageBubble } from "@/components/ui/message-bubble";
+import { DataTable } from "@/components/ui/data-table";
+import { SummaryCard } from "@/components/ui/summary-card";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Settings, Send, Mic, Mail, FileBarChart } from "lucide-react";
-import { Link } from "wouter";
+import { Clock, Settings, Send, Mic, Mail, MessageCircle, ChevronDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ChatMessage {
   id: string;
@@ -34,6 +37,11 @@ export default function Chat() {
   const [emailPassword, setEmailPassword] = useState("");
   const [reportRecipients, setReportRecipients] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("chat");
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -42,252 +50,322 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Generate month options for the past 2 years
+  const generateMonthOptions = () => {
+    const options = [];
+    const now = new Date();
+    
+    for (let i = 0; i < 24; i++) { // 24 months = 2 years
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      const label = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+      options.push({ value, label });
+    }
+    
+    return options;
+  };
+
+  const monthOptions = generateMonthOptions();
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   // Check Harvest connection status
   const { data: harvestStatus } = useQuery<HarvestStatus>({
-    queryKey: ['/api/harvest/status'],
-    queryFn: () => fetch('/api/harvest/status').then(res => res.json()),
+    queryKey: ["/api/harvest/status"],
     refetchInterval: 30000,
   });
 
-  // Fetch chat history
-  const { data: chatHistory = [] } = useQuery<ChatMessage[]>({
-    queryKey: ['/api/chat/history'],
-    queryFn: () => fetch('/api/chat/history').then(res => res.json()),
+  // Load current configuration
+  const { data: currentConfig, refetch: refetchConfig } = useQuery<{
+    harvestConfigured: boolean;
+    emailConfigured: boolean;
+    harvestAccountId?: string;
+    emailUser?: string;
+    reportRecipients?: string;
+  }>({
+    queryKey: ["/api/config"],
+    enabled: isSettingsOpen, // Only load when settings modal is open
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 
-  // Get current configuration
-  const { data: currentConfig } = useQuery<any>({
-    queryKey: ['/api/config'],
-    queryFn: () => fetch('/api/config').then(res => res.json()),
+  // Load report data
+  const { data: reportData, isLoading: reportLoading } = useQuery<{
+    projects: Array<{
+      id: number;
+      name: string;
+      totalHours: number;
+      budget: number;
+      budgetUsed: number;
+      budgetPercentComplete?: number;
+      billedAmount?: number;
+      billableHours?: number;
+    }>;
+    bhsProjects: any[];
+    summary: {
+      totalHours: number;
+      projectCount: number;
+      reportDate: string;
+    };
+  }>({
+    queryKey: ["/api/reports/data", selectedMonth],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/reports/data?month=${selectedMonth}`);
+      return response.json();
+    },
+    enabled: activeTab === "report", // Only load when report tab is active
+    refetchOnWindowFocus: false,
+  });
+
+  // Trigger config reload when settings modal opens
+  useEffect(() => {
+    if (isSettingsOpen) {
+      refetchConfig();
+    }
+  }, [isSettingsOpen, refetchConfig]);
+
+  // Load chat history
+  const { data: chatHistory } = useQuery<ChatMessage[]>({
+    queryKey: ["/api/chat/history"]
   });
 
   // Update messages when chat history loads
   useEffect(() => {
-    if (chatHistory && chatHistory.length > 0) {
+    if (chatHistory) {
       setMessages(chatHistory);
     }
   }, [chatHistory]);
 
+  // Update form fields when config loads
+  useEffect(() => {
+    if (currentConfig && isSettingsOpen) {
+      setAccountId(currentConfig.harvestAccountId || "");
+      setEmailUser(currentConfig.emailUser || "");
+      setReportRecipients(currentConfig.reportRecipients || "");
+      // Clear passwords for security when loading
+      setAccessToken("");
+      setEmailPassword("");
+    }
+  }, [currentConfig, isSettingsOpen]);
+
   // Send message mutation
   const sendMessageMutation = useMutation({
-    mutationFn: async (userMessage: string) => {
-      const response = await apiRequest('/api/chat', {
-        method: 'POST',
-        body: { message: userMessage },
-      });
-      return response;
+    mutationFn: async (content: string) => {
+      const response = await apiRequest("POST", "/api/chat", { message: content });
+      return response.json();
     },
-    onSuccess: (response) => {
-      // Add the new messages to the local state
-      setMessages(prev => [
-        ...prev,
-        response.userMessage,
-        response.assistantMessage
-      ]);
-      queryClient.invalidateQueries({ queryKey: ['/api/chat/history'] });
+    onSuccess: (data) => {
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        content: message,
+        role: 'user',
+        timestamp: new Date().toISOString()
+      };
+
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        content: data.response,
+        role: 'assistant',
+        timestamp: new Date().toISOString(),
+        harvestData: data,
+        queryType: data.queryType
+      };
+
+      setMessages(prev => [...prev, userMessage, assistantMessage]);
+      setMessage("");
     },
     onError: (error: any) => {
-      console.error('Chat error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to send message",
-        variant: "destructive",
+        variant: "destructive"
       });
-    },
+    }
   });
 
   // Configure Harvest mutation
   const configureHarvestMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('/api/harvest/configure', {
-        method: 'POST',
-        body: { accountId, accessToken },
+      const response = await apiRequest("POST", "/api/harvest/config", {
+        accountId,
+        accessToken
       });
-      return response;
+      return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Harvest connection configured successfully",
+        description: "Harvest API configured successfully"
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/harvest/status'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/config'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/harvest/status"] });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to configure Harvest",
-        variant: "destructive",
+        title: "Configuration Error",
+        description: error.message || "Failed to configure Harvest API",
+        variant: "destructive"
       });
-    },
+    }
   });
 
   // Configure Email mutation
   const configureEmailMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('/api/email/configure', {
-        method: 'POST',
-        body: { 
-          emailUser: emailUser.trim(),
-          emailPassword: emailPassword.trim(),
-          reportRecipients: reportRecipients.trim()
-        },
-      });
-      return response;
+      // Allow partial updates if email is already configured
+      const isUpdate = currentConfig?.emailConfigured;
+      
+      const body: any = {};
+      if (emailUser) body.emailUser = emailUser;
+      if (emailPassword) body.emailPassword = emailPassword;
+      if (reportRecipients !== undefined) body.reportRecipients = reportRecipients || "david@webapper.com";
+      
+      // For new configurations, require both email and password
+      if (!isUpdate && (!emailUser || !emailPassword)) {
+        throw new Error("Email user and password are required for initial setup");
+      }
+      
+      const response = await apiRequest("POST", "/api/email/config", body);
+      return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Email configuration saved successfully",
+        description: "Email configuration saved successfully"
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/config'] });
     },
     onError: (error: any) => {
       toast({
-        title: "Error", 
-        description: error.message || "Failed to configure email",
-        variant: "destructive",
+        title: "Email Configuration Error",
+        description: error.message || "Failed to configure email settings",
+        variant: "destructive"
       });
-    },
+    }
   });
 
-  // Test report mutation
+  // Test weekly report mutation
   const testReportMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('/api/reports/trigger', {
-        method: 'POST',
-      });
-      return response;
+      const response = await apiRequest("POST", "/api/reports/trigger");
+      return response.json();
     },
     onSuccess: () => {
+      const recipients = currentConfig?.reportRecipients || "configured recipients";
       toast({
         title: "Success",
-        description: "Test report sent successfully!",
+        description: `Test report sent successfully to ${recipients}`
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: "Test Report Error",
         description: error.message || "Failed to send test report",
-        variant: "destructive",
+        variant: "destructive"
       });
-    },
+    }
   });
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim() || sendMessageMutation.isPending) return;
-
-    const userMessage = message.trim();
-    setMessage("");
-    
-    // Add user message immediately to the UI
-    const tempUserMessage: ChatMessage = {
-      id: `temp-${Date.now()}`,
-      content: userMessage,
-      role: 'user',
-      timestamp: new Date().toISOString(),
-    };
-    setMessages(prev => [...prev, tempUserMessage]);
-
-    try {
-      await sendMessageMutation.mutateAsync(userMessage);
-    } catch (error) {
-      // Remove the temp message on error
-      setMessages(prev => prev.filter(m => m.id !== tempUserMessage.id));
-    }
-  };
-
-  const handleSaveAllSettings = async () => {
-    const promises = [];
-    
+  const handleSaveAllSettings = () => {
     if (accountId && accessToken) {
-      promises.push(configureHarvestMutation.mutateAsync());
+      configureHarvestMutation.mutate();
+    }
+    // Trigger email mutation if any email field has a value or if email is already configured and we're updating recipients
+    if (emailUser || emailPassword || (currentConfig?.emailConfigured && reportRecipients !== undefined)) {
+      configureEmailMutation.mutate();
+    }
+    // At least one configuration should be saved or updated
+    const harvestChanging = accountId || accessToken;
+    const emailChanging = emailUser || emailPassword || reportRecipients;
+    const harvestAlreadyConfigured = currentConfig?.harvestConfigured;
+    const emailAlreadyConfigured = currentConfig?.emailConfigured;
+    
+    if (!harvestChanging && !emailChanging && !harvestAlreadyConfigured && !emailAlreadyConfigured) {
+      toast({
+        title: "No Settings to Save",
+        description: "Please configure at least Harvest API or Email settings",
+        variant: "destructive"
+      });
+      return;
     }
     
-    if (emailUser && emailPassword && reportRecipients) {
-      promises.push(configureEmailMutation.mutateAsync());
-    }
-
-    try {
-      await Promise.all(promises);
+    // Only close modal if all attempted configurations succeeded
+    setTimeout(() => {
       setIsSettingsOpen(false);
-    } catch (error) {
-      // Individual mutations will handle their own error messages
-    }
+    }, 500);
   };
 
-  // Load existing config when settings dialog opens
-  useEffect(() => {
-    if (currentConfig && isSettingsOpen) {
-      if (currentConfig.harvestConfigured) {
-        // Don't overwrite if user has entered values
-        if (!accountId) setAccountId('');
-        if (!accessToken) setAccessToken('');
-      }
-      if (currentConfig.emailConfigured) {
-        if (!emailUser) setEmailUser(currentConfig.emailUser || '');
-        if (!reportRecipients) setReportRecipients(currentConfig.reportRecipients || '');
-        // Don't pre-fill password for security
-      }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim()) return;
+    
+    if (!harvestStatus?.connected) {
+      toast({
+        title: "Not Connected",
+        description: "Please configure your Harvest API credentials first",
+        variant: "destructive"
+      });
+      return;
     }
-  }, [currentConfig, isSettingsOpen, accountId, accessToken, emailUser, reportRecipients]);
+
+    sendMessageMutation.mutate(message);
+  };
+
+  const handleQuickAction = (actionMessage: string) => {
+    setMessage(actionMessage);
+  };
+
+  const quickActions = [
+    { label: "This week's hours", message: "Show me my time entries for this week" },
+    { label: "My projects", message: "What projects am I working on?" },
+    { label: "All clients", message: "Show me all clients and their active projects" },
+    { label: "Yesterday's work", message: "How many hours did I log yesterday?" },
+  ];
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen max-w-6xl mx-auto bg-white shadow-xl">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b px-4 py-3">
+      <header className="bg-harvest-orange text-white p-4 shadow-lg">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold text-gray-900">Harvest Assistant</h1>
-            
-            {/* Connection Status */}
-            <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${
-                harvestStatus?.connected ? 'bg-green-500' : 'bg-red-500'
-              }`} />
-              <span className="text-sm text-gray-600">
-                {harvestStatus?.connected ? 'Connected to Harvest' : 'Not connected'}
-              </span>
+          <div className="flex items-center space-x-3">
+            <Clock className="h-8 w-8" data-testid="icon-harvest-clock" />
+            <div>
+              <h1 className="text-xl font-bold">Harvest API Assistant</h1>
+              <p className="text-orange-100 text-sm">Ask questions about your time tracking data</p>
             </div>
           </div>
-
-          <div className="flex items-center space-x-2">
-            {/* Monthly Report Link */}
-            <Link href="/report">
-              <Button variant="outline" className="flex items-center space-x-2">
-                <FileBarChart size={18} />
-                <span>Monthly Report</span>
-              </Button>
-            </Link>
-
-            {/* Settings Dialog */}
+          <div className="flex items-center space-x-4">
+            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm ${
+              harvestStatus?.connected 
+                ? 'bg-green-500' 
+                : 'bg-red-500'
+            }`} data-testid="status-connection">
+              <div className={`w-2 h-2 bg-white rounded-full ${
+                harvestStatus?.connected ? 'animate-pulse' : ''
+              }`}></div>
+              <span>{harvestStatus?.connected ? 'Connected' : 'Disconnected'}</span>
+            </div>
             <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" data-testid="button-settings">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-white hover:bg-harvest-dark"
+                  data-testid="button-settings"
+                >
                   <Settings className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md" data-testid="settings-dialog">
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Settings</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-6">
-                  {/* Harvest Configuration */}
+                  {/* Harvest API Section */}
                   <div className="space-y-4">
                     <div className="flex items-center space-x-2">
                       <Clock className="h-5 w-5 text-harvest-orange" />
                       <h3 className="text-lg font-semibold">Harvest API</h3>
-                      {currentConfig?.harvestConfigured && (
-                        <div className="flex items-center space-x-1 text-green-600">
-                          <div className="w-2 h-2 bg-green-500 rounded-full" />
-                          <span className="text-xs">Configured</span>
-                        </div>
-                      )}
                     </div>
                     <div>
                       <Label htmlFor="accountId">Account ID</Label>
@@ -300,29 +378,23 @@ export default function Chat() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="accessToken">Access Token</Label>
+                      <Label htmlFor="accessToken">Personal Access Token</Label>
                       <Input
                         id="accessToken"
                         type="password"
                         value={accessToken}
                         onChange={(e) => setAccessToken(e.target.value)}
-                        placeholder={currentConfig?.harvestConfigured ? "********" : "Your Personal Access Token"}
+                        placeholder={currentConfig?.harvestConfigured ? "********" : "Your Harvest API Token"}
                         data-testid="input-access-token"
                       />
                     </div>
                   </div>
 
-                  {/* Email Configuration */}
-                  <div className="space-y-4">
+                  {/* Email Settings Section */}
+                  <div className="space-y-4 border-t pt-4">
                     <div className="flex items-center space-x-2">
-                      <Mail className="h-5 w-5 text-blue-500" />
+                      <Mail className="h-5 w-5 text-blue-600" />
                       <h3 className="text-lg font-semibold">Email Reports</h3>
-                      {currentConfig?.emailConfigured && (
-                        <div className="flex items-center space-x-1 text-green-600">
-                          <div className="w-2 h-2 bg-green-500 rounded-full" />
-                          <span className="text-xs">Configured</span>
-                        </div>
-                      )}
                     </div>
                     <p className="text-sm text-gray-600">
                       Configure email settings to send weekly project budget reports every Monday at 8:00 AM CST.
@@ -395,8 +467,22 @@ export default function Chat() {
         </div>
       </header>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" data-testid="chat-messages">
+      {/* Tab Navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="chat" className="flex items-center space-x-2">
+            <MessageCircle className="h-4 w-4" />
+            <span>Chat</span>
+          </TabsTrigger>
+          <TabsTrigger value="report" className="flex items-center space-x-2">
+            <Mail className="h-4 w-4" />
+            <span>Monthly Report</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="chat" className="flex-1 flex flex-col mt-0">
+          {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[70vh]" data-testid="chat-messages">
         {/* Welcome Message */}
         {messages.length === 0 && (
           <MessageBubble
@@ -410,11 +496,8 @@ export default function Chat() {
                   <li>"Show me my time entries for this week"</li>
                   <li>"What projects am I working on?"</li>
                   <li>"How many hours did I log yesterday?"</li>
-                  <li>"Which project has the highest budget utilization?"</li>
+                  <li>"Show me all clients and their active projects"</li>
                 </ul>
-                <p className="mt-2 text-sm">
-                  You can also view the <Link href="/report" className="text-orange-600 hover:underline">Monthly Report</Link> for detailed budget tracking.
-                </p>
               </div>
             }
           />
@@ -427,48 +510,244 @@ export default function Chat() {
             role={msg.role}
             content={msg.content}
             timestamp={msg.timestamp}
-            data={msg.harvestData}
+            extraContent={
+              msg.role === 'assistant' && msg.harvestData && (
+                <div className="mt-4 space-y-4">
+                  {/* Data Table */}
+                  {msg.harvestData.data && Array.isArray(msg.harvestData.data) && msg.harvestData.data.length > 0 && (
+                    <DataTable 
+                      data={msg.harvestData.data} 
+                      queryType={msg.queryType || 'time_entries'} 
+                    />
+                  )}
+                  
+                  {/* Summary Card */}
+                  {msg.harvestData.summary && (
+                    <SummaryCard summary={msg.harvestData.summary} />
+                  )}
+                </div>
+              )
+            }
           />
         ))}
 
-        {/* Loading indicator */}
+        {/* Loading Message */}
         {sendMessageMutation.isPending && (
-          <div className="flex justify-start">
-            <Card className="bg-gray-100 max-w-xs">
-              <CardContent className="p-3">
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
-                  <span className="text-gray-600">Processing...</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <MessageBubble
+            role="assistant"
+            content=""
+            timestamp={new Date().toISOString()}
+            isLoading={true}
+          />
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSendMessage} className="p-4 bg-white border-t">
-        <div className="flex space-x-2">
-          <Input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Ask about your time entries, projects, or budget..."
-            disabled={sendMessageMutation.isPending}
-            className="flex-1"
-            data-testid="input-message"
-          />
+      <div className="border-t border-gray-200 p-4 bg-white">
+        <form onSubmit={handleSubmit} className="flex space-x-3" data-testid="form-chat">
+          <div className="flex-1 relative">
+            <Input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Ask a question about your Harvest data..."
+              className="w-full pr-10"
+              data-testid="input-message"
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <Mic className="h-4 w-4 text-gray-400 hover:text-harvest-orange cursor-pointer transition-colors" />
+            </div>
+          </div>
           <Button 
-            type="submit" 
-            disabled={sendMessageMutation.isPending || !message.trim()}
+            type="submit"
+            disabled={!message.trim() || sendMessageMutation.isPending || !harvestStatus?.connected}
             className="bg-harvest-orange hover:bg-harvest-dark"
             data-testid="button-send"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-4 w-4 mr-2" />
+            Send
           </Button>
+        </form>
+        
+        {/* Quick Actions */}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {quickActions.map((action, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickAction(action.message)}
+              className="text-sm"
+              data-testid={`button-quick-${index}`}
+            >
+              {action.label}
+            </Button>
+          ))}
         </div>
-      </form>
+      </div>
+        </TabsContent>
+
+        <TabsContent value="report" className="flex-1" data-testid="report-content">
+          <div className="h-full w-full overflow-y-auto bg-white">
+            <div className="w-full p-8">
+              {/* Weekly Report Content */}
+              <div className="bg-gradient-to-r from-orange-600 to-orange-500 text-white p-8 rounded-lg mb-8 text-center">
+                <h1 className="text-3xl font-bold mb-2">Monthly Project Budget Report</h1>
+                <p className="text-orange-100">
+                  {reportData?.summary?.reportDate || new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+              </div>
+
+              <div className="bg-gray-50 p-6 rounded-lg mb-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-4">Month-to-Date Summary</h2>
+                <p className="text-gray-600">This report shows the total hours and budget utilization for each project so far this month.</p>
+              </div>
+
+              {reportLoading ? (
+                <div className="bg-white rounded-lg shadow-lg p-8 mb-8 text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading real project data from Harvest...</p>
+                </div>
+              ) : reportData && reportData.projects && reportData.projects.length > 0 ? (
+                <div className="space-y-8 mb-8">
+                  {/* Month Selector */}
+                  <div className="flex items-center justify-end mb-6" data-testid="month-selector">
+                    <div className="flex items-center space-x-4">
+                      <Label htmlFor="month-select" className="text-lg font-semibold text-gray-800">
+                        Select Month:
+                      </Label>
+                      <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                        <SelectTrigger className="w-64" id="month-select">
+                          <SelectValue placeholder="Select a month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {monthOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Primary Projects Table */}
+                  <div>
+                    <h2 className="text-2xl font-semibold text-gray-800 mb-4">Primary Projects</h2>
+                    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-800 text-white">
+                          <tr>
+                            <th className="px-6 py-4 text-left">Project Name</th>
+                            <th className="px-6 py-4 text-center">Hours Logged</th>
+                            <th className="px-6 py-4 text-center">Billable Hours</th>
+                            <th className="px-6 py-4 text-center">Budget Spent</th>
+                            <th className="px-6 py-4 text-center">Budget %</th>
+                            <th className="px-6 py-4 text-center">Total Budget</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reportData.projects.map((project, index) => (
+                            <tr key={project.id} className="border-b">
+                              <td className="px-6 py-4 font-medium">{project.name}</td>
+                              <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
+                              <td className="px-6 py-4 text-center">{project.billableHours?.toFixed(1) || '0'}h</td>
+                              <td className="px-6 py-4 text-center">${project.billedAmount?.toFixed(2) || '0.00'}</td>
+                              <td className="px-6 py-4 text-center">
+                                <span className={
+                                  (project.budgetPercentComplete || 0) > 90 ? 'text-red-600 font-semibold' : 
+                                  (project.budgetPercentComplete || 0) > 75 ? 'text-yellow-600 font-semibold' : 
+                                  'text-green-600'
+                                }>
+                                  {(project.budgetPercentComplete || 0).toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                {project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* BHS Projects Table */}
+                  {reportData.bhsProjects && reportData.bhsProjects.length > 0 && (
+                    <div>
+                      <h2 className="text-2xl font-semibold text-gray-800 mb-4">Basic Hosting Support (BHS) Projects</h2>
+                      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                        <table className="w-full">
+                          <thead className="bg-gray-800 text-white">
+                            <tr>
+                              <th className="px-6 py-4 text-left">Client Name</th>
+                              <th className="px-6 py-4 text-center">Hours Logged</th>
+                              <th className="px-6 py-4 text-center">Support Hours</th>
+                              <th className="px-6 py-4 text-center">Budget %</th>
+                              <th className="px-6 py-4 text-center">Total Budget</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reportData.bhsProjects.map((project, index) => {
+                              // Calculate budget percentage for hours (hours logged / support hours budget)
+                              const budgetPercent = project.budget > 0 ? (project.totalHours / project.budget) * 100 : 0;
+                              // Calculate total budget: $150 × Support Hours
+                              const totalBudget = project.budget > 0 ? project.budget * 150 : 0;
+                              return (
+                                <tr key={project.id} className="border-b">
+                                  <td className="px-6 py-4 font-medium">{project.name}</td>
+                                  <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
+                                  <td className="px-6 py-4 text-center">{project.budget > 0 ? `${project.budget}h` : 'No Budget Set'}</td>
+                                  <td className="px-6 py-4 text-center">
+                                    <span className={
+                                      budgetPercent > 100 ? 'text-red-600 font-semibold' : 
+                                      budgetPercent > 85 ? 'text-yellow-600 font-semibold' : 
+                                      'text-green-600'
+                                    }>
+                                      {budgetPercent.toFixed(1)}%
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 text-center">${totalBudget.toLocaleString()}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow-lg p-8 mb-8 text-center">
+                  <p className="text-gray-600 mb-4">No project data found for this month.</p>
+                  <p className="text-sm text-gray-500">Make sure you have time entries logged in Harvest for the current month.</p>
+                </div>
+              )}
+
+              <div className="bg-gray-100 p-6 rounded-lg">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4">Summary</h3>
+                <div className="space-y-2">
+                  <p><strong>Total Hours This Month:</strong> {
+                    ((reportData?.projects?.reduce((sum, p) => sum + (p.totalHours || 0), 0) || 0) + 
+                     (reportData?.bhsProjects?.reduce((sum, p) => sum + (p.totalHours || 0), 0) || 0)).toFixed(1)
+                  } hours</p>
+                  <p><strong>Total Billable Hours:</strong> {
+                    ((reportData?.projects?.reduce((sum, p) => sum + (p.billableHours || 0), 0) || 0) + 
+                     (reportData?.bhsProjects?.reduce((sum, p) => sum + (p.budget || 0), 0) || 0)).toFixed(1)
+                  } hours</p>
+                  <p><strong>Total Amount Billed:</strong> ${
+                    ((reportData?.projects?.reduce((sum, p) => sum + (p.budget || 0), 0) || 0) + 
+                     (reportData?.bhsProjects?.reduce((sum, p) => sum + ((p.budget || 0) * 150), 0) || 0)).toFixed(2)
+                  }</p>
+                  <p><strong>Projects Tracked:</strong> {((reportData?.projects?.length || 0) + (reportData?.bhsProjects?.length || 0))}</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
