@@ -612,7 +612,7 @@ export default function Chat() {
               ) : reportData && reportData.projects && reportData.projects.length > 0 ? (
                 <div className="space-y-8 mb-8">
                   {/* Month Selector */}
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-end mb-6">
                     <div className="flex items-center space-x-4">
                       <Label htmlFor="month-select" className="text-lg font-semibold text-gray-800">
                         Select Month:
