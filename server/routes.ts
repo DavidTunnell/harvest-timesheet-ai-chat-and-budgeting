@@ -353,83 +353,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientMap.set(client.id, client);
       });
 
-      // Separate BHS projects from regular projects and group by client
-      const bhsProjectsRaw = allProjects.filter(project => 
-        project.name.toLowerCase().includes('basic hosting support') || 
-        project.name.toLowerCase().includes('bhs')
-      );
-
-      // Group BHS projects by client to create the 4 specific rows
-      const bhsClientMap = new Map();
+      // Process BHS projects separately using original Harvest data
       const targetBhsClients = [
-        { keywords: ['atlantic', 'british'], displayName: 'Atlantic British Ltd.' },
-        { keywords: ['erep'], displayName: 'eRep, Inc.' },
-        { keywords: ['icon', 'media'], displayName: 'Icon Media, Inc.' },
-        { keywords: ['vision'], displayName: 'Vision AST' }
+        { keywords: ['atlantic', 'british'], displayName: 'Atlantic British Ltd.', supportHours: 8 },
+        { keywords: ['erep'], displayName: 'eRep, Inc.', supportHours: 2 },
+        { keywords: ['icon', 'media'], displayName: 'Icon Media, Inc.', supportHours: 8 },
+        { keywords: ['vision'], displayName: 'Vision AST', supportHours: 1.5 }
       ];
 
-      // Initialize BHS client entries
+      const bhsClientMap = new Map();
+
+      // Initialize BHS client entries with default support hours
       targetBhsClients.forEach(client => {
         bhsClientMap.set(client.displayName, {
           id: `bhs-${client.displayName.toLowerCase().replace(/[^a-z]/g, '')}`,
           name: `${client.displayName} - Basic Hosting Support`,
           totalHours: 0,
-          budget: 0,
-          budgetSpent: 0,
-          budgetRemaining: 0,
-          billedAmount: 0,
-          billableHours: 0,
-          budgetUsed: 0,
-          budgetPercentComplete: 0
+          supportHours: client.supportHours,
+          budgetPercentage: 0,
+          totalBudget: client.supportHours * 150 // $150 per hour rate
         });
       });
 
-      // Process raw BHS projects and find matching clients
-      bhsProjectsRaw.forEach(project => {
-        // Find the client for this project
-        const projectClient = projects.find(p => p.id === project.id)?.client;
-        if (projectClient) {
-          const clientName = projectClient.name.toLowerCase();
-          
-          // Match to target clients
-          const matchedClient = targetBhsClients.find(target =>
-            target.keywords.some(keyword => clientName.includes(keyword))
-          );
-          
-          if (matchedClient) {
-            const clientEntry = bhsClientMap.get(matchedClient.displayName);
-            clientEntry.totalHours += project.totalHours;
-            clientEntry.budget += project.budget;
-            clientEntry.budgetSpent += project.budgetSpent;
-            clientEntry.budgetRemaining += project.budgetRemaining;
-            clientEntry.billedAmount += project.billedAmount;
-            clientEntry.billableHours += project.billableHours;
+      // Find BHS time entries and group by client
+      timeEntries.forEach(entry => {
+        const projectName = entry.project.name.toLowerCase();
+        const isBasicHosting = projectName.includes('basic hosting support') || projectName.includes('bhs');
+        
+        if (isBasicHosting) {
+          // Find the project to get client information
+          const harvestProject = projects.find(p => p.id === entry.project.id);
+          if (harvestProject && harvestProject.client) {
+            const clientName = harvestProject.client.name.toLowerCase();
             
-            // Update budget percentage
-            if (clientEntry.budget > 0) {
-              clientEntry.budgetPercentComplete = Math.round((clientEntry.billedAmount / clientEntry.budget * 100) * 100) / 100;
+            // Match to target BHS clients
+            const matchedClient = targetBhsClients.find(target =>
+              target.keywords.some(keyword => clientName.includes(keyword))
+            );
+            
+            if (matchedClient) {
+              const clientEntry = bhsClientMap.get(matchedClient.displayName);
+              clientEntry.totalHours += entry.hours;
+              
+              // Calculate budget percentage (hours logged / support hours * 100)
+              clientEntry.budgetPercentage = clientEntry.supportHours > 0 
+                ? Math.round((clientEntry.totalHours / clientEntry.supportHours * 100) * 100) / 100
+                : 0;
             }
           }
         }
       });
 
-      // Ensure Atlantic British Ltd appears even if no matching project found
-      if (!bhsClientMap.has('Atlantic British Ltd.')) {
-        bhsClientMap.set('Atlantic British Ltd.', {
-          id: 'bhs-atlanticbritishltd',
-          name: 'Atlantic British Ltd. - Basic Hosting Support',
-          totalHours: 0,
-          budget: 8, // Default budget hours
-          budgetSpent: 0,
-          budgetRemaining: 0,
-          billedAmount: 0,
-          billableHours: 0,
-          budgetUsed: 0,
-          budgetPercentComplete: 0
-        });
-      }
-
-      const bhsProjects = Array.from(bhsClientMap.values()); // Show all target BHS clients, even with 0 hours
+      const bhsProjects = Array.from(bhsClientMap.values()).sort((a, b) => b.totalHours - a.totalHours);
       
       const regularProjects = allProjects.filter(project => 
         !project.name.toLowerCase().includes('basic hosting support') && 
@@ -438,11 +413,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const projectData = regularProjects.sort((a, b) => b.totalHours - a.totalHours);
 
+      // Calculate total BHS hours for summary
+      const totalBhsHours = bhsProjects.reduce((sum, project) => sum + project.totalHours, 0);
+
       res.json({
         projects: projectData,
-        bhsProjects: bhsProjects.sort((a, b) => b.totalHours - a.totalHours),
+        bhsProjects: bhsProjects,
         summary: {
-          totalHours: totalHours,
+          totalHours: totalHours + totalBhsHours,
           projectCount: projectData.length,
           reportDate: selectedDate.toLocaleDateString('en-US', { 
             year: 'numeric', 
