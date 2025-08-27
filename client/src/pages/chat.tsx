@@ -633,35 +633,33 @@ export default function Chat() {
                         <table className="w-full">
                           <thead className="bg-gray-800 text-white">
                             <tr>
-                              <th className="px-6 py-4 text-left">Project Name</th>
+                              <th className="px-6 py-4 text-left">Client Name</th>
                               <th className="px-6 py-4 text-center">Hours Logged</th>
-                              <th className="px-6 py-4 text-center">Billable Hours</th>
-                              <th className="px-6 py-4 text-center">Amount Billed</th>
+                              <th className="px-6 py-4 text-center">Support Hours</th>
                               <th className="px-6 py-4 text-center">Budget %</th>
-                              <th className="px-6 py-4 text-center">Total Budget</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {reportData.bhsProjects.map((project, index) => (
-                              <tr key={project.id} className="border-b">
-                                <td className="px-6 py-4 font-medium">{project.name}</td>
-                                <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
-                                <td className="px-6 py-4 text-center">{project.billableHours?.toFixed(1) || '0'}h</td>
-                                <td className="px-6 py-4 text-center">${project.billedAmount?.toFixed(2) || '0.00'}</td>
-                                <td className="px-6 py-4 text-center">
-                                  <span className={
-                                    (project.budgetPercentComplete || 0) > 90 ? 'text-red-600 font-semibold' : 
-                                    (project.budgetPercentComplete || 0) > 75 ? 'text-yellow-600 font-semibold' : 
-                                    'text-green-600'
-                                  }>
-                                    {(project.budgetPercentComplete || 0).toFixed(1)}%
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  {project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}
-                                </td>
-                              </tr>
-                            ))}
+                            {reportData.bhsProjects.map((project, index) => {
+                              // Calculate budget percentage for hours (hours logged / support hours budget)
+                              const budgetPercent = project.budget > 0 ? (project.totalHours / project.budget) * 100 : 0;
+                              return (
+                                <tr key={project.id} className="border-b">
+                                  <td className="px-6 py-4 font-medium">{project.name}</td>
+                                  <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
+                                  <td className="px-6 py-4 text-center">{project.budget > 0 ? `${project.budget}h` : 'No Budget Set'}</td>
+                                  <td className="px-6 py-4 text-center">
+                                    <span className={
+                                      budgetPercent > 100 ? 'text-red-600 font-semibold' : 
+                                      budgetPercent > 85 ? 'text-yellow-600 font-semibold' : 
+                                      'text-green-600'
+                                    }>
+                                      {budgetPercent.toFixed(1)}%
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
