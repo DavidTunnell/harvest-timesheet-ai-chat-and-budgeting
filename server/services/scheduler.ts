@@ -210,13 +210,13 @@ export class ReportScheduler {
         if (matchedClient) {
           const clientEntry = bhsClientMap.get(matchedClient.displayName);
           clientEntry.totalHours += project.totalHours;
-          clientEntry.budget += project.budget;
+          // Don't add project.budget for BHS - keep the support hours we set in initialization
           clientEntry.budgetSpent += project.budgetSpent;
           clientEntry.budgetRemaining += project.budgetRemaining;
           clientEntry.billedAmount += project.billedAmount;
           clientEntry.billableHours += project.billableHours;
           
-          // Update budget percentage
+          // Update budget percentage (for BHS, this is not used since we calculate differently)
           if (clientEntry.budget > 0) {
             clientEntry.budgetPercentComplete = Math.round((clientEntry.billedAmount / clientEntry.budget * 100) * 100) / 100;
           }
