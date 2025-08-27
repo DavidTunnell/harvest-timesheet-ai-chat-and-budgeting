@@ -67,7 +67,7 @@ export class ReportScheduler {
       }
 
       // Create simple email with link to report page
-      const reportUrl = `${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000'}/#/report`;
+      const reportUrl = 'https://harvest-query-davidtunnell9.replit.app/#/report';
       
       const emailContent = `
         <html>
