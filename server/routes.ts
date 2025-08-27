@@ -419,8 +419,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      const bhsProjects = Array.from(bhsClientMap.values())
-        .filter(project => project.totalHours > 0); // Only show clients with actual hours
+      // Ensure Atlantic British Ltd appears even if no matching project found
+      if (!bhsClientMap.has('Atlantic British Ltd.')) {
+        bhsClientMap.set('Atlantic British Ltd.', {
+          id: 'bhs-atlanticbritishltd',
+          name: 'Atlantic British Ltd. - Basic Hosting Support',
+          totalHours: 0,
+          budget: 8, // Default budget hours
+          budgetSpent: 0,
+          budgetRemaining: 0,
+          billedAmount: 0,
+          billableHours: 0,
+          budgetUsed: 0,
+          budgetPercentComplete: 0
+        });
+      }
+
+      const bhsProjects = Array.from(bhsClientMap.values()); // Show all target BHS clients, even with 0 hours
       
       const regularProjects = allProjects.filter(project => 
         !project.name.toLowerCase().includes('basic hosting support') && 
