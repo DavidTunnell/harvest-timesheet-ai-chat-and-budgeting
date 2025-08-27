@@ -264,8 +264,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         if (isTargetProject) {
-          // Use actual budget from Harvest API
+          // Use actual budget from Harvest API, with known budgets as fallback
           let projectBudget = project.budget || 0;
+          
+          // Set known budgets if Harvest API doesn't have them
+          if (projectBudget === 0) {
+            if (project.name.toLowerCase().includes('retained support services') || 
+                project.name.toLowerCase().includes('educational data services')) {
+              projectBudget = 15500; // $15,500 for EDS
+            } else if (project.name.toLowerCase().includes('vision ast')) {
+              projectBudget = 14700; // $14,700 for Vision AST
+            }
+          }
           
           projectMap.set(project.id, {
             id: project.id,
