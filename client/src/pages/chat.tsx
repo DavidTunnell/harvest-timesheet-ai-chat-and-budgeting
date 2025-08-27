@@ -636,8 +636,8 @@ export default function Chat() {
                               <th className="px-6 py-4 text-left">Client Name</th>
                               <th className="px-6 py-4 text-center">Hours Logged</th>
                               <th className="px-6 py-4 text-center">Support Hours</th>
-                              <th className="px-6 py-4 text-center">Total Budget</th>
                               <th className="px-6 py-4 text-center">Budget %</th>
+                              <th className="px-6 py-4 text-center">Total Budget</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -651,7 +651,6 @@ export default function Chat() {
                                   <td className="px-6 py-4 font-medium">{project.name}</td>
                                   <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
                                   <td className="px-6 py-4 text-center">{project.budget > 0 ? `${project.budget}h` : 'No Budget Set'}</td>
-                                  <td className="px-6 py-4 text-center">${totalBudget.toLocaleString()}</td>
                                   <td className="px-6 py-4 text-center">
                                     <span className={
                                       budgetPercent > 100 ? 'text-red-600 font-semibold' : 
@@ -661,6 +660,7 @@ export default function Chat() {
                                       {budgetPercent.toFixed(1)}%
                                     </span>
                                   </td>
+                                  <td className="px-6 py-4 text-center">${totalBudget.toLocaleString()}</td>
                                 </tr>
                               );
                             })}
