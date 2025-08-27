@@ -83,17 +83,8 @@ export class ReportScheduler {
       );
       
       if (isTargetProject) {
-        // Set known budgets from user data (same as Weekly Report page)
+        // Use actual budget from Harvest API
         let projectBudget = project.budget || 0;
-        if (project.name.toLowerCase().includes('retained support services') || 
-            project.name.toLowerCase().includes('educational data services')) {
-          projectBudget = 15500; // $15,500 for EDS
-        } else if (project.name.toLowerCase().includes('vision ast')) {
-          projectBudget = 14700; // $14,700 for Vision AST
-        } else if (project.name.toLowerCase().includes('basic hosting support') || 
-                   project.name.toLowerCase().includes('bhs')) {
-          projectBudget = 0; // No budget set for BHS - update as needed
-        }
         
         projectMap.set(project.id, {
           name: project.name,

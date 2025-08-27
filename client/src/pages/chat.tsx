@@ -583,41 +583,90 @@ export default function Chat() {
                   <p className="text-gray-600">Loading real project data from Harvest...</p>
                 </div>
               ) : reportData && reportData.projects && reportData.projects.length > 0 ? (
-                <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
-                  <table className="w-full">
-                    <thead className="bg-gray-800 text-white">
-                      <tr>
-                        <th className="px-6 py-4 text-left">Project Name</th>
-                        <th className="px-6 py-4 text-center">Hours Logged</th>
-                        <th className="px-6 py-4 text-center">Billable Hours</th>
-                        <th className="px-6 py-4 text-center">Amount Billed</th>
-                        <th className="px-6 py-4 text-center">Budget %</th>
-                        <th className="px-6 py-4 text-center">Total Budget</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reportData.projects.map((project, index) => (
-                        <tr key={project.id} className="border-b">
-                          <td className="px-6 py-4 font-medium">{project.name}</td>
-                          <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
-                          <td className="px-6 py-4 text-center">{project.billableHours?.toFixed(1) || '0'}h</td>
-                          <td className="px-6 py-4 text-center">${project.billedAmount?.toFixed(2) || '0.00'}</td>
-                          <td className="px-6 py-4 text-center">
-                            <span className={
-                              (project.budgetPercentComplete || 0) > 90 ? 'text-red-600 font-semibold' : 
-                              (project.budgetPercentComplete || 0) > 75 ? 'text-yellow-600 font-semibold' : 
-                              'text-green-600'
-                            }>
-                              {(project.budgetPercentComplete || 0).toFixed(1)}%
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            {project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-8 mb-8">
+                  {/* Primary Projects Table */}
+                  <div>
+                    <h2 className="text-2xl font-semibold text-gray-800 mb-4">Primary Projects</h2>
+                    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-800 text-white">
+                          <tr>
+                            <th className="px-6 py-4 text-left">Project Name</th>
+                            <th className="px-6 py-4 text-center">Hours Logged</th>
+                            <th className="px-6 py-4 text-center">Billable Hours</th>
+                            <th className="px-6 py-4 text-center">Amount Billed</th>
+                            <th className="px-6 py-4 text-center">Budget %</th>
+                            <th className="px-6 py-4 text-center">Total Budget</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reportData.projects.map((project, index) => (
+                            <tr key={project.id} className="border-b">
+                              <td className="px-6 py-4 font-medium">{project.name}</td>
+                              <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
+                              <td className="px-6 py-4 text-center">{project.billableHours?.toFixed(1) || '0'}h</td>
+                              <td className="px-6 py-4 text-center">${project.billedAmount?.toFixed(2) || '0.00'}</td>
+                              <td className="px-6 py-4 text-center">
+                                <span className={
+                                  (project.budgetPercentComplete || 0) > 90 ? 'text-red-600 font-semibold' : 
+                                  (project.budgetPercentComplete || 0) > 75 ? 'text-yellow-600 font-semibold' : 
+                                  'text-green-600'
+                                }>
+                                  {(project.budgetPercentComplete || 0).toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                {project.budget > 0 ? `${project.budget}h` : 'No Budget Set'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* BHS Projects Table */}
+                  {reportData.bhsProjects && reportData.bhsProjects.length > 0 && (
+                    <div>
+                      <h2 className="text-2xl font-semibold text-gray-800 mb-4">Basic Hosting Support (BHS) Projects</h2>
+                      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+                        <table className="w-full">
+                          <thead className="bg-gray-800 text-white">
+                            <tr>
+                              <th className="px-6 py-4 text-left">Project Name</th>
+                              <th className="px-6 py-4 text-center">Hours Logged</th>
+                              <th className="px-6 py-4 text-center">Billable Hours</th>
+                              <th className="px-6 py-4 text-center">Amount Billed</th>
+                              <th className="px-6 py-4 text-center">Budget %</th>
+                              <th className="px-6 py-4 text-center">Total Budget</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reportData.bhsProjects.map((project, index) => (
+                              <tr key={project.id} className="border-b">
+                                <td className="px-6 py-4 font-medium">{project.name}</td>
+                                <td className="px-6 py-4 text-center">{project.totalHours.toFixed(1)}h</td>
+                                <td className="px-6 py-4 text-center">{project.billableHours?.toFixed(1) || '0'}h</td>
+                                <td className="px-6 py-4 text-center">${project.billedAmount?.toFixed(2) || '0.00'}</td>
+                                <td className="px-6 py-4 text-center">
+                                  <span className={
+                                    (project.budgetPercentComplete || 0) > 90 ? 'text-red-600 font-semibold' : 
+                                    (project.budgetPercentComplete || 0) > 75 ? 'text-yellow-600 font-semibold' : 
+                                    'text-green-600'
+                                  }>
+                                    {(project.budgetPercentComplete || 0).toFixed(1)}%
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  {project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="bg-white rounded-lg shadow-lg p-8 mb-8 text-center">
