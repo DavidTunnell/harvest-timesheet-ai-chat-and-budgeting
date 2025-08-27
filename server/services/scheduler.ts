@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import { HarvestService } from './harvest';
-import { sendEmail, generateProjectReportHTML } from './email';
+import { sendEmail } from './email';
 import { saveReportAsFile, createEmailInstructions } from './email-fallback';
 import { storage } from '../storage';
 
@@ -66,10 +66,44 @@ export class ReportScheduler {
         return;
       }
 
-      // Get the same data that the report page uses
-      const reportResponse = await fetch(`http://localhost:5000/api/reports/data`);
-      const reportData = await reportResponse.json();
-      const htmlContent = generateProjectReportHTML(reportData);
+      // Create simple email with link to report page
+      const reportUrl = `${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : 'http://localhost:5000'}/#/report`;
+      
+      const emailContent = `
+        <html>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; line-height: 1.6;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #ea580c, #fb923c); color: white; padding: 30px; border-radius: 8px; text-align: center; margin-bottom: 30px;">
+              <h1 style="margin: 0 0 10px 0; font-size: 28px;">Weekly Project Budget Report</h1>
+              <p style="margin: 0; color: #fed7aa;">Ready for your review</p>
+            </div>
+            
+            <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 30px; text-align: center;">
+              <h2 style="color: #374151; margin-bottom: 15px;">Your monthly project budget report is ready!</h2>
+              <p style="color: #6b7280; margin-bottom: 25px;">Click the button below to view your detailed project budget report with current data from Harvest.</p>
+              
+              <a href="${reportUrl}" style="display: inline-block; background: #ea580c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; margin-bottom: 20px;">
+                View Report →
+              </a>
+              
+              <div style="background: #f9fafb; padding: 20px; border-radius: 6px; margin-top: 20px;">
+                <h3 style="color: #374151; margin: 0 0 10px 0; font-size: 16px;">What's included:</h3>
+                <ul style="color: #6b7280; text-align: left; margin: 0; padding-left: 20px;">
+                  <li>Primary Projects with budget tracking</li>
+                  <li>Basic Hosting Support (BHS) client breakdown</li>
+                  <li>Monthly summary totals and metrics</li>
+                  <li>Historical data with month selection</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 30px;">
+              <p>This reminder is sent every Monday at 8:00 AM CST.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
 
       // Split recipients by comma and send to each
       const recipients = emailConfig.reportRecipients.split(',').map(email => email.trim());
@@ -77,21 +111,18 @@ export class ReportScheduler {
       
       for (const recipient of recipients) {
         if (recipient) {
+          console.log(`Sending weekly report link to ${recipient}`);
           const emailSuccess = await sendEmail({
             to: recipient,
-            subject: `Weekly Project Budget Report - ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`,
-            html: htmlContent
+            subject: `Weekly Project Budget Report - Ready for Review`,
+            html: emailContent
           });
 
           if (emailSuccess) {
-            console.log(`Weekly report sent successfully to ${recipient}`);
+            console.log(`Weekly report link sent successfully to ${recipient}`);
             anySuccess = true;
           } else {
-            console.log(`Email delivery failed for ${recipient}, creating backup file...`);
-            const fileSuccess = await saveReportAsFile(htmlContent, recipient);
-            if (fileSuccess) {
-              console.log(createEmailInstructions(recipient));
-            }
+            console.log(`Failed to send weekly report link to ${recipient}`);
           }
         }
       }
