@@ -561,9 +561,9 @@ export default function Chat() {
       </div>
         </TabsContent>
 
-        <TabsContent value="report" className="flex-1 p-4">
-          <div className="h-full w-full overflow-y-auto">
-            <div className="max-w-4xl mx-auto">
+        <TabsContent value="report" className="flex-1">
+          <div className="h-full w-full overflow-y-auto bg-white">
+            <div className="w-full p-8">
               {/* Weekly Report Content */}
               <div className="bg-gradient-to-r from-orange-600 to-orange-500 text-white p-8 rounded-lg mb-8 text-center">
                 <h1 className="text-3xl font-bold mb-2">Weekly Project Budget Report</h1>
@@ -686,19 +686,6 @@ export default function Chat() {
                 </p>
               </div>
 
-              <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h4 className="text-lg font-semibold text-blue-800 mb-2">📧 Email Instructions</h4>
-                <p className="text-blue-700 text-sm mb-2">
-                  To send this report to david@webapper.com:
-                </p>
-                <ol className="text-blue-700 text-sm space-y-1 list-decimal list-inside">
-                  <li>Copy the content above (Ctrl+A, then Ctrl+C)</li>
-                  <li>Open your email client</li>
-                  <li>Create new email to: david@webapper.com</li>
-                  <li>Subject: Weekly Project Budget Report - {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</li>
-                  <li>Paste the content and send</li>
-                </ol>
-              </div>
             </div>
           </div>
         </TabsContent>
