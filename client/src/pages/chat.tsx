@@ -594,7 +594,7 @@ export default function Chat() {
                             <th className="px-6 py-4 text-left">Project Name</th>
                             <th className="px-6 py-4 text-center">Hours Logged</th>
                             <th className="px-6 py-4 text-center">Billable Hours</th>
-                            <th className="px-6 py-4 text-center">Amount Billed</th>
+                            <th className="px-6 py-4 text-center">Budget Spent</th>
                             <th className="px-6 py-4 text-center">Budget %</th>
                             <th className="px-6 py-4 text-center">Total Budget</th>
                           </tr>
