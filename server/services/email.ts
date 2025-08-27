@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import puppeteer from 'puppeteer';
 import { storage } from '../storage';
 
 // Create a transporter using Gmail SMTP (free)
@@ -81,6 +82,7 @@ Gmail Authentication Failed. Please ensure:
   }
 }
 
+// Generate HTML that matches the report page exactly
 export function generateProjectReportHTML(reportData: any): string {
   const { projects, bhsProjects = [], summary } = reportData;
   
@@ -91,15 +93,15 @@ export function generateProjectReportHTML(reportData: any): string {
                        project.budgetPercentComplete >= 85 ? '#f59e0b' : '#22c55e';
     
     primaryTableRows += `
-      <tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 16px 12px; text-align: left;">${project.name}</td>
-        <td style="padding: 16px 12px; text-align: center;">${project.totalHours.toFixed(1)}h</td>
-        <td style="padding: 16px 12px; text-align: center;">$${project.budget.toLocaleString()}</td>
-        <td style="padding: 16px 12px; text-align: center; color: ${budgetColor}; font-weight: 600;">
+      <tr>
+        <td style="padding: 16px 12px; text-align: left; border-bottom: 1px solid #e5e7eb;">${project.name}</td>
+        <td style="padding: 16px 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">${project.totalHours.toFixed(1)}h</td>
+        <td style="padding: 16px 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">$${project.budget.toLocaleString()}</td>
+        <td style="padding: 16px 12px; text-align: center; border-bottom: 1px solid #e5e7eb; color: ${budgetColor}; font-weight: 600;">
           ${project.budgetPercentComplete.toFixed(1)}%
         </td>
-        <td style="padding: 16px 12px; text-align: center;">${project.billableHours.toFixed(1)}h</td>
-        <td style="padding: 16px 12px; text-align: center;">$${project.billedAmount.toFixed(2)}</td>
+        <td style="padding: 16px 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">${project.billableHours.toFixed(1)}h</td>
+        <td style="padding: 16px 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">$${project.billedAmount.toFixed(2)}</td>
       </tr>
     `;
   });
@@ -110,26 +112,24 @@ export function generateProjectReportHTML(reportData: any): string {
   let totalBhsBudget = 0;
   
   bhsProjects.forEach(project => {
-    const supportHours = Math.round(project.budget / 150); // Calculate support hours from budget
+    const supportHours = Math.round(project.budget / 150);
     const budgetPercentage = supportHours > 0 ? (project.totalHours / supportHours * 100) : 0;
     const budgetColor = budgetPercentage > 100 ? '#ef4444' : 
                        budgetPercentage >= 85 ? '#f59e0b' : '#22c55e';
     
-    // Extract client name from project name
     const clientName = project.name.replace(' - Basic Hosting Support', '');
-    
     totalBhsHours += project.totalHours;
     totalBhsBudget += project.budget;
     
     bhsTableRows += `
-      <tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 16px 12px; text-align: left;">${clientName}</td>
-        <td style="padding: 16px 12px; text-align: center;">${project.totalHours.toFixed(1)}h</td>
-        <td style="padding: 16px 12px; text-align: center;">${supportHours}h</td>
-        <td style="padding: 16px 12px; text-align: center; color: ${budgetColor}; font-weight: 600;">
+      <tr>
+        <td style="padding: 16px 12px; text-align: left; border-bottom: 1px solid #e5e7eb;">${clientName}</td>
+        <td style="padding: 16px 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">${project.totalHours.toFixed(1)}h</td>
+        <td style="padding: 16px 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">${supportHours}h</td>
+        <td style="padding: 16px 12px; text-align: center; border-bottom: 1px solid #e5e7eb; color: ${budgetColor}; font-weight: 600;">
           ${budgetPercentage.toFixed(1)}%
         </td>
-        <td style="padding: 16px 12px; text-align: center;">$${project.budget.toLocaleString()}</td>
+        <td style="padding: 16px 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">$${project.budget.toLocaleString()}</td>
       </tr>
     `;
   });
@@ -204,18 +204,18 @@ export function generateProjectReportHTML(reportData: any): string {
           text-align: center;
         }
         th:first-child { text-align: left; }
-        td { padding: 16px 12px; border-bottom: 1px solid #e5e7eb; }
+        td { border-bottom: 1px solid #e5e7eb; }
         tr:last-child td { border-bottom: none; }
       </style>
     </head>
     <body>
       <div class="container">
         <!-- Header -->
-        <div style="text-align: center; margin-bottom: 32px;">
-          <h1 style="color: #111827; font-size: 32px; font-weight: 700; margin: 0 0 8px 0;">
+        <div style="background: linear-gradient(135deg, #ea580c, #fb923c); color: white; padding: 32px; border-radius: 8px; margin-bottom: 32px; text-align: center;">
+          <h1 style="font-size: 32px; font-weight: 700; margin: 0 0 8px 0;">
             Monthly Project Budget Report
           </h1>
-          <p style="color: #6b7280; font-size: 18px; margin: 0;">
+          <p style="color: #fed7aa; font-size: 16px; margin: 0;">
             ${summary?.reportDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
           </p>
         </div>
