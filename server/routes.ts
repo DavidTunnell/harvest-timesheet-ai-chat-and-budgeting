@@ -342,6 +342,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allProjects = Array.from(projectMap.values())
         .map(project => ({
           ...project,
+          // Update project name for display
+          name: project.name.includes('Retained Support Services') ? 'EDS Retained Support Services' : project.name,
           budgetUsed: project.budget > 0 
             ? Math.round((project.budgetSpent / project.budget * 100) * 100) / 100
             : 0,
