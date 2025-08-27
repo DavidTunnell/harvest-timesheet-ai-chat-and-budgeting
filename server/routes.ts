@@ -352,11 +352,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
           billableHours: Math.round(project.billableHours * 100) / 100
         }));
       
-      // Separate BHS projects from regular projects for the report
-      const bhsProjects = allProjects.filter(project => 
+      // Get clients data to organize BHS projects properly
+      const clients = await harvestService.getClients();
+      const clientMap = new Map();
+      clients.forEach(client => {
+        clientMap.set(client.id, client);
+      });
+
+      // Separate BHS projects from regular projects and group by client
+      const bhsProjectsRaw = allProjects.filter(project => 
         project.name.toLowerCase().includes('basic hosting support') || 
         project.name.toLowerCase().includes('bhs')
       );
+
+      // Group BHS projects by client to create the 4 specific rows
+      const bhsClientMap = new Map();
+      const targetBhsClients = [
+        { keywords: ['atlantic', 'british'], displayName: 'Atlantic British Ltd.' },
+        { keywords: ['erep'], displayName: 'eRep, Inc.' },
+        { keywords: ['icon', 'media'], displayName: 'Icon Media, Inc.' },
+        { keywords: ['vision'], displayName: 'Vision AST' }
+      ];
+
+      // Initialize BHS client entries
+      targetBhsClients.forEach(client => {
+        bhsClientMap.set(client.displayName, {
+          id: `bhs-${client.displayName.toLowerCase().replace(/[^a-z]/g, '')}`,
+          name: `${client.displayName} - Basic Hosting Support`,
+          totalHours: 0,
+          budget: 0,
+          budgetSpent: 0,
+          budgetRemaining: 0,
+          billedAmount: 0,
+          billableHours: 0,
+          budgetUsed: 0,
+          budgetPercentComplete: 0
+        });
+      });
+
+      // Process raw BHS projects and find matching clients
+      bhsProjectsRaw.forEach(project => {
+        // Find the client for this project
+        const projectClient = projects.find(p => p.id === project.id)?.client;
+        if (projectClient) {
+          const clientName = projectClient.name.toLowerCase();
+          
+          // Match to target clients
+          const matchedClient = targetBhsClients.find(target =>
+            target.keywords.some(keyword => clientName.includes(keyword))
+          );
+          
+          if (matchedClient) {
+            const clientEntry = bhsClientMap.get(matchedClient.displayName);
+            clientEntry.totalHours += project.totalHours;
+            clientEntry.budget += project.budget;
+            clientEntry.budgetSpent += project.budgetSpent;
+            clientEntry.budgetRemaining += project.budgetRemaining;
+            clientEntry.billedAmount += project.billedAmount;
+            clientEntry.billableHours += project.billableHours;
+            
+            // Update budget percentage
+            if (clientEntry.budget > 0) {
+              clientEntry.budgetPercentComplete = Math.round((clientEntry.billedAmount / clientEntry.budget * 100) * 100) / 100;
+            }
+          }
+        }
+      });
+
+      const bhsProjects = Array.from(bhsClientMap.values())
+        .filter(project => project.totalHours > 0); // Only show clients with actual hours
       
       const regularProjects = allProjects.filter(project => 
         !project.name.toLowerCase().includes('basic hosting support') && 
