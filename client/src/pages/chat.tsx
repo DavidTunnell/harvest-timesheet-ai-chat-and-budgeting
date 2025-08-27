@@ -11,7 +11,8 @@ import { MessageBubble } from "@/components/ui/message-bubble";
 import { DataTable } from "@/components/ui/data-table";
 import { SummaryCard } from "@/components/ui/summary-card";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, Settings, Send, Mic, Mail, MessageCircle } from "lucide-react";
+import { Clock, Settings, Send, Mic, Mail, MessageCircle, ChevronDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ChatMessage {
   id: string;
@@ -37,6 +38,10 @@ export default function Chat() {
   const [reportRecipients, setReportRecipients] = useState("");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("chat");
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -44,6 +49,23 @@ export default function Chat() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Generate month options for the past 2 years
+  const generateMonthOptions = () => {
+    const options = [];
+    const now = new Date();
+    
+    for (let i = 0; i < 24; i++) { // 24 months = 2 years
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      const label = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+      options.push({ value, label });
+    }
+    
+    return options;
+  };
+
+  const monthOptions = generateMonthOptions();
 
   useEffect(() => {
     scrollToBottom();
@@ -81,13 +103,18 @@ export default function Chat() {
       billedAmount?: number;
       billableHours?: number;
     }>;
+    bhsProjects: any[];
     summary: {
       totalHours: number;
       projectCount: number;
       reportDate: string;
     };
   }>({
-    queryKey: ["/api/reports/data"],
+    queryKey: ["/api/reports/data", selectedMonth],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/reports/data?month=${selectedMonth}`);
+      return response.json();
+    },
     enabled: activeTab === "report", // Only load when report tab is active
     refetchOnWindowFocus: false,
   });
@@ -584,6 +611,27 @@ export default function Chat() {
                 </div>
               ) : reportData && reportData.projects && reportData.projects.length > 0 ? (
                 <div className="space-y-8 mb-8">
+                  {/* Month Selector */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center space-x-4">
+                      <Label htmlFor="month-select" className="text-lg font-semibold text-gray-800">
+                        Select Month:
+                      </Label>
+                      <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                        <SelectTrigger className="w-64" id="month-select">
+                          <SelectValue placeholder="Select a month" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {monthOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
                   {/* Primary Projects Table */}
                   <div>
                     <h2 className="text-2xl font-semibold text-gray-800 mb-4">Primary Projects</h2>

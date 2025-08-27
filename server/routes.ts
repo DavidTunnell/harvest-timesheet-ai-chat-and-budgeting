@@ -224,15 +224,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accessToken: harvestConfig.accessToken
       });
 
-      // Get month-to-date range
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      // Get month parameter or default to current month
+      const monthParam = req.query.month as string;
+      const selectedDate = monthParam ? new Date(monthParam + '-01') : new Date();
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth() + 1; // getMonth() returns 0-11, so add 1
+
+      // Calculate date range for the selected month
+      const startOfMonth = new Date(year, selectedDate.getMonth(), 1);
+      const endOfMonth = new Date(year, selectedDate.getMonth() + 1, 0);
       
       const dateRange = {
         from: startOfMonth.toISOString().split('T')[0],
         to: endOfMonth.toISOString().split('T')[0]
       };
+
+      console.log(`Loading report data for ${selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} (${dateRange.from} to ${dateRange.to})`);
 
       // Get time entries for this month
       const timeEntries = await harvestService.getTimeEntries({
@@ -452,11 +459,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         summary: {
           totalHours: totalHours,
           projectCount: projectData.length,
-          reportDate: new Date().toLocaleDateString('en-US', { 
-            weekday: 'long', 
+          reportDate: selectedDate.toLocaleDateString('en-US', { 
             year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+            month: 'long' 
           })
         }
       });
