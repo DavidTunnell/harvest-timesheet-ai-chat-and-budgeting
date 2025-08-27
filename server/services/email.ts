@@ -81,16 +81,17 @@ Gmail Authentication Failed. Please ensure:
   }
 }
 
-export function generateProjectReportHTML(regularProjects: any[], bhsProjects: any[] = [], reportDate?: string): string {
-  const currentDate = reportDate || new Date().toLocaleDateString('en-US', { 
+export function generateProjectReportHTML(regularProjects: any[], bhsProjects: any[] = []): string {
+  const currentDate = new Date().toLocaleDateString('en-US', { 
+    weekday: 'long', 
     year: 'numeric', 
-    month: 'long' 
+    month: 'long', 
+    day: 'numeric' 
   });
 
   // Generate regular projects table
   let regularTableRows = '';
   let totalRegularHours = 0;
-  let totalRegularBudget = 0;
 
   regularProjects.forEach(project => {
     const budgetPercentage = project.budget > 0 
@@ -98,64 +99,38 @@ export function generateProjectReportHTML(regularProjects: any[], bhsProjects: a
       : 'N/A';
     
     totalRegularHours += project.totalHours;
-    totalRegularBudget += project.billedAmount || 0;
-
-    // Apply color coding: Green (<85%), Yellow (85-100%), Red (>100%)
-    const percentage = parseFloat(budgetPercentage);
-    let bgColor = '#d4edda'; // Green background
-    if (percentage >= 85 && percentage <= 100) bgColor = '#fff3cd'; // Yellow background
-    if (percentage > 100) bgColor = '#f8d7da'; // Red background
 
     regularTableRows += `
-      <tr style="background-color: ${bgColor};">
+      <tr>
         <td style="padding: 12px; border-bottom: 1px solid #eee;">${project.name}</td>
         <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.totalHours.toFixed(1)}h</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.billableHours ? project.billableHours.toFixed(1) + 'h' : '0h'}</td>
         <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold;">
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; color: ${parseFloat(budgetPercentage) > 90 ? '#e74c3c' : parseFloat(budgetPercentage) > 75 ? '#f39c12' : '#27ae60'};">
           ${budgetPercentage}%
         </td>
       </tr>
     `;
   });
 
-  // Generate BHS projects table with client-specific structure
+  // Generate BHS projects table
   let bhsTableRows = '';
   let totalBhsHours = 0;
-  let totalBhsSupportHours = 0;
-  let totalBhsBudget = 0;
 
-  // BHS projects should show: Client Name, Hours Logged, Support Hours, Budget %, Total Budget
   bhsProjects.forEach(project => {
-    // Extract client name from project name (remove " - Basic Hosting Support" suffix)
-    const clientName = project.name.replace(/ - Basic Hosting Support$/, '');
-    
-    // Use the actual support hours from the project data (budget field represents support hours)
-    const supportHours = project.budget;
-    const budgetPercentage = supportHours > 0 
-      ? ((project.totalHours / supportHours) * 100).toFixed(1)
-      : '0.0';
-    const totalBudget = supportHours * 150; // $150 per support hour
+    const budgetPercentage = project.budget > 0 
+      ? ((project.billedAmount || 0) / project.budget * 100).toFixed(1)
+      : 'N/A';
     
     totalBhsHours += project.totalHours;
-    totalBhsSupportHours += supportHours;
-    totalBhsBudget += totalBudget;
-
-    // Apply color coding: Green (<85%), Yellow (85-100%), Red (>100%)
-    const percentage = parseFloat(budgetPercentage);
-    let bgColor = '#d4edda'; // Green background
-    if (percentage >= 85 && percentage <= 100) bgColor = '#fff3cd'; // Yellow background
-    if (percentage > 100) bgColor = '#f8d7da'; // Red background
 
     bhsTableRows += `
-      <tr style="background-color: ${bgColor};">
-        <td style="padding: 12px; border-bottom: 1px solid #eee;">${clientName}</td>
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid #eee;">${project.name}</td>
         <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.totalHours.toFixed(1)}h</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${supportHours}h</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold;">
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; color: ${parseFloat(budgetPercentage) > 90 ? '#e74c3c' : parseFloat(budgetPercentage) > 75 ? '#f39c12' : '#27ae60'};">
           ${budgetPercentage}%
         </td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">$${totalBudget.toLocaleString()}</td>
       </tr>
     `;
   });
@@ -165,12 +140,11 @@ export function generateProjectReportHTML(regularProjects: any[], bhsProjects: a
       <h2 style="color: #2c3e50; margin-bottom: 20px;">Basic Hosting Support (BHS) Projects</h2>
       <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
         <thead>
-          <tr style="background: #374151; color: white;">
-            <th style="padding: 15px; text-align: left;">Client Name</th>
+          <tr style="background: #34495e; color: white;">
+            <th style="padding: 15px; text-align: left;">Project Name</th>
             <th style="padding: 15px; text-align: center;">Hours Logged</th>
-            <th style="padding: 15px; text-align: center;">Support Hours</th>
-            <th style="padding: 15px; text-align: center;">Budget %</th>
             <th style="padding: 15px; text-align: center;">Total Budget</th>
+            <th style="padding: 15px; text-align: center;">Budget %</th>
           </tr>
         </thead>
         <tbody>
@@ -185,26 +159,25 @@ export function generateProjectReportHTML(regularProjects: any[], bhsProjects: a
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Monthly Project Budget Report</title>
+      <title>Weekly Project Budget Report</title>
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #FF6B35, #F7931E); color: white; padding: 30px; border-radius: 8px; margin-bottom: 30px; text-align: center;">
-        <h1 style="margin: 0; font-size: 28px;">Monthly Project Budget Report</h1>
+        <h1 style="margin: 0; font-size: 28px;">Weekly Project Budget Report</h1>
         <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">${currentDate}</p>
       </div>
 
       <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-        <h2 style="color: #2c3e50; margin-top: 0;">Monthly Summary</h2>
-        <p>This report shows the total hours and budget utilization for each project for the selected month.</p>
+        <h2 style="color: #2c3e50; margin-top: 0;">Month-to-Date Summary</h2>
+        <p>This report shows the total hours and budget utilization for each project so far this month.</p>
       </div>
 
       <h2 style="color: #2c3e50; margin-bottom: 20px;">Primary Projects</h2>
       <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
         <thead>
-          <tr style="background: #374151; color: white;">
+          <tr style="background: #34495e; color: white;">
             <th style="padding: 15px; text-align: left;">Project Name</th>
             <th style="padding: 15px; text-align: center;">Hours Logged</th>
-            <th style="padding: 15px; text-align: center;">Billable Hours</th>
             <th style="padding: 15px; text-align: center;">Total Budget</th>
             <th style="padding: 15px; text-align: center;">Budget %</th>
           </tr>
@@ -218,21 +191,10 @@ export function generateProjectReportHTML(regularProjects: any[], bhsProjects: a
 
       <div style="margin-top: 30px; padding: 20px; background: #ecf0f1; border-radius: 8px;">
         <h3 style="color: #2c3e50; margin-top: 0;">Summary</h3>
-        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px;">
-          <div style="background: white; padding: 15px; border-radius: 8px; flex: 1; min-width: 200px; text-align: center;">
-            <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Total Hours</h4>
-            <p style="margin: 0; font-size: 24px; font-weight: bold; color: #FF6B35;">${(totalRegularHours + totalBhsHours).toFixed(1)}h</p>
-          </div>
-          <div style="background: white; padding: 15px; border-radius: 8px; flex: 1; min-width: 200px; text-align: center;">
-            <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Total Billable Hours</h4>
-            <p style="margin: 0; font-size: 24px; font-weight: bold; color: #27ae60;">${(regularProjects.reduce((sum, p) => sum + (p.billableHours || 0), 0) + totalBhsSupportHours).toFixed(1)}h</p>
-          </div>
-          <div style="background: white; padding: 15px; border-radius: 8px; flex: 1; min-width: 200px; text-align: center;">
-            <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Total Budget</h4>
-            <p style="margin: 0; font-size: 24px; font-weight: bold; color: #3498db;">$${(totalRegularBudget + totalBhsBudget).toLocaleString()}</p>
-          </div>
-        </div>
-        <p style="margin-top: 20px;"><strong>Projects Tracked:</strong> ${regularProjects.length + bhsProjects.length}</p>
+        <p><strong>Total Regular Project Hours:</strong> ${totalRegularHours.toFixed(1)} hours</p>
+        ${bhsProjects.length > 0 ? `<p><strong>Total BHS Hours:</strong> ${totalBhsHours.toFixed(1)} hours</p>` : ''}
+        <p><strong>Total Hours This Month:</strong> ${(totalRegularHours + totalBhsHours).toFixed(1)} hours</p>
+        <p><strong>Projects Tracked:</strong> ${regularProjects.length + bhsProjects.length}</p>
         <p style="font-size: 12px; color: #7f8c8d; margin-top: 20px;">
           This report is automatically generated by your Harvest Assistant every Monday at 8:00 AM CST.
         </p>

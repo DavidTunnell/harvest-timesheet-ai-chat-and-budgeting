@@ -389,10 +389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: `bhs-${client.displayName.toLowerCase().replace(/[^a-z]/g, '')}`,
           name: `${client.displayName} - Basic Hosting Support`,
           totalHours: 0,
-          budget: client.displayName === 'Atlantic British Ltd.' ? 16 : 
-                  client.displayName === 'eRep, Inc.' ? 4 :
-                  client.displayName === 'Icon Media, Inc.' ? 16 :
-                  3, // Vision AST
+          budget: 0,
           budgetSpent: 0,
           budgetRemaining: 0,
           billedAmount: 0,
@@ -417,13 +414,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (matchedClient) {
             const clientEntry = bhsClientMap.get(matchedClient.displayName);
             clientEntry.totalHours += project.totalHours;
-            // Don't add project.budget for BHS - keep the support hours we set in initialization
+            clientEntry.budget += project.budget;
             clientEntry.budgetSpent += project.budgetSpent;
             clientEntry.budgetRemaining += project.budgetRemaining;
             clientEntry.billedAmount += project.billedAmount;
             clientEntry.billableHours += project.billableHours;
             
-            // Update budget percentage (for BHS, this is not used since we calculate differently)
+            // Update budget percentage
             if (clientEntry.budget > 0) {
               clientEntry.budgetPercentComplete = Math.round((clientEntry.billedAmount / clientEntry.budget * 100) * 100) / 100;
             }
@@ -437,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: 'bhs-atlanticbritishltd',
           name: 'Atlantic British Ltd. - Basic Hosting Support',
           totalHours: 0,
-          budget: 16, // Updated budget hours
+          budget: 8, // Default budget hours
           budgetSpent: 0,
           budgetRemaining: 0,
           billedAmount: 0,
