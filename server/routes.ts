@@ -363,20 +363,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      const allProjects = Array.from(projectMap.values())
-        .map(project => ({
-          ...project,
-          // Update project name for display
-          name: project.name.includes('Retained Support Services') ? 'EDS Retained Support Services' : project.name,
-          budgetUsed: project.budget > 0 
-            ? Math.round((project.budgetSpent / project.budget * 100) * 100) / 100
-            : 0,
-          budgetPercentComplete: project.budget > 0 
-            ? Math.round((project.billedAmount / project.budget * 100) * 100) / 100
-            : 0,
-          billedAmount: Math.round(project.billedAmount * 100) / 100,
-          billableHours: Math.round(project.billableHours * 100) / 100
-        }));
+      // Consolidate projects with the same target name
+      const consolidatedProjects = new Map();
+      
+      Array.from(projectMap.values()).forEach(project => {
+        // Determine the display name for this project
+        let displayName = project.name;
+        if (project.name.toLowerCase().includes('retained support services')) {
+          displayName = 'EDS Retained Support Services';
+        } else if (project.name.toLowerCase().includes('vision') && project.name.toLowerCase().includes('ast')) {
+          displayName = 'Vision AST';
+        } else if (project.name.toLowerCase().includes('cloudsee') || project.name.toLowerCase().includes('cloud see')) {
+          displayName = 'CloudSee Drive';
+        }
+        
+        if (consolidatedProjects.has(displayName)) {
+          // Merge with existing project
+          const existing = consolidatedProjects.get(displayName);
+          existing.totalHours += project.totalHours;
+          existing.budgetSpent += project.budgetSpent;
+          existing.budgetRemaining += project.budgetRemaining;
+          existing.billedAmount += project.billedAmount;
+          existing.billableHours += project.billableHours;
+          // Keep the higher budget value
+          if (project.budget > existing.budget) {
+            existing.budget = project.budget;
+          }
+        } else {
+          // Add new consolidated project
+          consolidatedProjects.set(displayName, {
+            ...project,
+            name: displayName,
+            budgetUsed: project.budget > 0 
+              ? Math.round((project.budgetSpent / project.budget * 100) * 100) / 100
+              : 0,
+            budgetPercentComplete: project.budget > 0 
+              ? Math.round((project.billedAmount / project.budget * 100) * 100) / 100
+              : 0,
+            billedAmount: Math.round(project.billedAmount * 100) / 100,
+            billableHours: Math.round(project.billableHours * 100) / 100
+          });
+        }
+      });
+      
+      // Recalculate percentages for consolidated projects
+      const allProjects = Array.from(consolidatedProjects.values()).map(project => ({
+        ...project,
+        budgetUsed: project.budget > 0 
+          ? Math.round((project.budgetSpent / project.budget * 100) * 100) / 100
+          : 0,
+        budgetPercentComplete: project.budget > 0 
+          ? Math.round((project.billedAmount / project.budget * 100) * 100) / 100
+          : 0,
+        billedAmount: Math.round(project.billedAmount * 100) / 100,
+        billableHours: Math.round(project.billableHours * 100) / 100
+      }));
       
       // Get clients data to organize BHS projects properly
       const clients = await harvestService.getClients();
@@ -469,6 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       const projectData = regularProjects.sort((a, b) => b.totalHours - a.totalHours);
+      
 
       res.json({
         projects: projectData,
