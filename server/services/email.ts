@@ -81,123 +81,166 @@ Gmail Authentication Failed. Please ensure:
   }
 }
 
-export function generateProjectReportHTML(regularProjects: any[], bhsProjects: any[] = []): string {
-  const currentDate = new Date().toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
-
-  // Generate regular projects table
-  let regularTableRows = '';
-  let totalRegularHours = 0;
-
-  regularProjects.forEach(project => {
-    const budgetPercentage = project.budget > 0 
-      ? ((project.billedAmount || 0) / project.budget * 100).toFixed(1)
-      : 'N/A';
+export function generateProjectReportHTML(reportData: any): string {
+  const { projects, bhsProjects = [], summary } = reportData;
+  
+  // Generate Primary Projects table rows
+  let primaryTableRows = '';
+  projects.forEach(project => {
+    const budgetColor = project.budgetPercentComplete > 100 ? '#ef4444' : 
+                       project.budgetPercentComplete >= 85 ? '#f59e0b' : '#22c55e';
     
-    totalRegularHours += project.totalHours;
-
-    regularTableRows += `
+    primaryTableRows += `
       <tr>
-        <td style="padding: 12px; border-bottom: 1px solid #eee;">${project.name}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.totalHours.toFixed(1)}h</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; color: ${parseFloat(budgetPercentage) > 90 ? '#e74c3c' : parseFloat(budgetPercentage) > 75 ? '#f39c12' : '#27ae60'};">
-          ${budgetPercentage}%
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${project.name}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${project.totalHours.toFixed(1)}h</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">$${project.budget.toLocaleString()}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center; color: ${budgetColor}; font-weight: 600;">
+          ${project.budgetPercentComplete.toFixed(1)}%
         </td>
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${project.billableHours.toFixed(1)}h</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">$${project.billedAmount.toFixed(2)}</td>
       </tr>
     `;
   });
 
-  // Generate BHS projects table
+  // Generate BHS Projects table rows
   let bhsTableRows = '';
   let totalBhsHours = 0;
-
+  let totalBhsBudget = 0;
+  
   bhsProjects.forEach(project => {
-    const budgetPercentage = project.budget > 0 
-      ? ((project.billedAmount || 0) / project.budget * 100).toFixed(1)
-      : 'N/A';
+    const supportHours = Math.round(project.budget / 150); // Calculate support hours from budget
+    const budgetPercentage = supportHours > 0 ? (project.totalHours / supportHours * 100) : 0;
+    const budgetColor = budgetPercentage > 100 ? '#ef4444' : 
+                       budgetPercentage >= 85 ? '#f59e0b' : '#22c55e';
+    
+    // Extract client name from project name
+    const clientName = project.name.replace(' - Basic Hosting Support', '');
     
     totalBhsHours += project.totalHours;
-
+    totalBhsBudget += project.budget;
+    
     bhsTableRows += `
       <tr>
-        <td style="padding: 12px; border-bottom: 1px solid #eee;">${project.name}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.totalHours.toFixed(1)}h</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${project.budget > 0 ? `$${project.budget.toLocaleString()}` : 'No Budget Set'}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center; color: ${parseFloat(budgetPercentage) > 90 ? '#e74c3c' : parseFloat(budgetPercentage) > 75 ? '#f39c12' : '#27ae60'};">
-          ${budgetPercentage}%
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${clientName}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${project.totalHours.toFixed(1)}h</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${supportHours}h</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center; color: ${budgetColor}; font-weight: 600;">
+          ${budgetPercentage.toFixed(1)}%
         </td>
+        <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">$${project.budget.toLocaleString()}</td>
       </tr>
     `;
   });
 
-  const bhsSection = bhsProjects.length > 0 ? `
-    <div style="margin-top: 40px;">
-      <h2 style="color: #2c3e50; margin-bottom: 20px;">Basic Hosting Support (BHS) Projects</h2>
-      <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <thead>
-          <tr style="background: #34495e; color: white;">
-            <th style="padding: 15px; text-align: left;">Project Name</th>
-            <th style="padding: 15px; text-align: center;">Hours Logged</th>
-            <th style="padding: 15px; text-align: center;">Total Budget</th>
-            <th style="padding: 15px; text-align: center;">Budget %</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${bhsTableRows}
-        </tbody>
-      </table>
-    </div>
-  ` : '';
+  // Calculate totals
+  const totalPrimaryBudget = projects.reduce((sum, p) => sum + p.budget, 0);
+  const totalPrimaryBilled = projects.reduce((sum, p) => sum + p.billedAmount, 0);
+  const totalBillableHours = projects.reduce((sum, p) => sum + p.billableHours, 0) + totalBhsHours;
 
   return `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Weekly Project Budget Report</title>
+      <title>Monthly Project Budget Report</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .summary-card { 
+          display: inline-block; 
+          background: white; 
+          border-radius: 8px; 
+          padding: 20px; 
+          margin: 10px; 
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          min-width: 200px;
+        }
+        .summary-card h3 { margin: 0 0 10px 0; color: #374151; font-size: 14px; font-weight: 500; }
+        .summary-card .value { font-size: 24px; font-weight: 700; color: #111827; }
+      </style>
     </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #FF6B35, #F7931E); color: white; padding: 30px; border-radius: 8px; margin-bottom: 30px; text-align: center;">
-        <h1 style="margin: 0; font-size: 28px;">Weekly Project Budget Report</h1>
-        <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">${currentDate}</p>
-      </div>
+    <body style="background-color: white; margin: 0; padding: 40px; color: #111827;">
+      <div style="max-width: 1200px; margin: 0 auto;">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 40px;">
+          <h1 style="color: #111827; font-size: 32px; font-weight: 700; margin: 0 0 8px 0;">
+            Monthly Project Budget Report
+          </h1>
+          <p style="color: #6b7280; font-size: 18px; margin: 0;">
+            ${summary?.reportDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+          </p>
+        </div>
 
-      <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-        <h2 style="color: #2c3e50; margin-top: 0;">Month-to-Date Summary</h2>
-        <p>This report shows the total hours and budget utilization for each project so far this month.</p>
-      </div>
+        <!-- Summary Cards -->
+        <div style="text-align: center; margin-bottom: 40px;">
+          <div class="summary-card">
+            <h3>Total Hours</h3>
+            <div class="value">${summary?.totalHours?.toFixed(1) || '0.0'}h</div>
+          </div>
+          <div class="summary-card">
+            <h3>Total Budget</h3>
+            <div class="value">$${(totalPrimaryBudget + totalBhsBudget).toLocaleString()}</div>
+          </div>
+          <div class="summary-card">
+            <h3>Total Billable Hours</h3>
+            <div class="value">${totalBillableHours.toFixed(1)}h</div>
+          </div>
+          <div class="summary-card">
+            <h3>Total Billed</h3>
+            <div class="value">$${totalPrimaryBilled.toFixed(2)}</div>
+          </div>
+        </div>
 
-      <h2 style="color: #2c3e50; margin-bottom: 20px;">Primary Projects</h2>
-      <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <thead>
-          <tr style="background: #34495e; color: white;">
-            <th style="padding: 15px; text-align: left;">Project Name</th>
-            <th style="padding: 15px; text-align: center;">Hours Logged</th>
-            <th style="padding: 15px; text-align: center;">Total Budget</th>
-            <th style="padding: 15px; text-align: center;">Budget %</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${regularTableRows}
-        </tbody>
-      </table>
+        <!-- Primary Projects Table -->
+        <div style="margin-bottom: 40px;">
+          <h2 style="color: #374151; font-size: 24px; font-weight: 600; margin: 0 0 16px 0;">Primary Projects</h2>
+          <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background: #1f2937; color: white;">
+                  <th style="padding: 16px; text-align: left; font-weight: 600;">Project Name</th>
+                  <th style="padding: 16px; text-align: center; font-weight: 600;">Hours Logged</th>
+                  <th style="padding: 16px; text-align: center; font-weight: 600;">Budget</th>
+                  <th style="padding: 16px; text-align: center; font-weight: 600;">Budget %</th>
+                  <th style="padding: 16px; text-align: center; font-weight: 600;">Billable Hours</th>
+                  <th style="padding: 16px; text-align: center; font-weight: 600;">Billed Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${primaryTableRows}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      ${bhsSection}
+        ${bhsProjects.length > 0 ? `
+        <!-- BHS Projects Table -->
+        <div style="margin-bottom: 40px;">
+          <h2 style="color: #374151; font-size: 24px; font-weight: 600; margin: 0 0 16px 0;">Basic Hosting Support (BHS) Projects</h2>
+          <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background: #1f2937; color: white;">
+                  <th style="padding: 16px; text-align: left; font-weight: 600;">Client Name</th>
+                  <th style="padding: 16px; text-align: center; font-weight: 600;">Hours Logged</th>
+                  <th style="padding: 16px; text-align: center; font-weight: 600;">Support Hours</th>
+                  <th style="padding: 16px; text-align: center; font-weight: 600;">Budget %</th>
+                  <th style="padding: 16px; text-align: center; font-weight: 600;">Total Budget</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${bhsTableRows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        ` : ''}
 
-      <div style="margin-top: 30px; padding: 20px; background: #ecf0f1; border-radius: 8px;">
-        <h3 style="color: #2c3e50; margin-top: 0;">Summary</h3>
-        <p><strong>Total Regular Project Hours:</strong> ${totalRegularHours.toFixed(1)} hours</p>
-        ${bhsProjects.length > 0 ? `<p><strong>Total BHS Hours:</strong> ${totalBhsHours.toFixed(1)} hours</p>` : ''}
-        <p><strong>Total Hours This Month:</strong> ${(totalRegularHours + totalBhsHours).toFixed(1)} hours</p>
-        <p><strong>Projects Tracked:</strong> ${regularProjects.length + bhsProjects.length}</p>
-        <p style="font-size: 12px; color: #7f8c8d; margin-top: 20px;">
-          This report is automatically generated by your Harvest Assistant every Monday at 8:00 AM CST.
-        </p>
+        <!-- Footer -->
+        <div style="text-align: center; color: #6b7280; font-size: 12px; margin-top: 40px;">
+          <p>This report is automatically generated by your Harvest Assistant every Monday at 8:00 AM CST.</p>
+        </div>
       </div>
     </body>
     </html>
